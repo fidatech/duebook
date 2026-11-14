@@ -127,15 +127,15 @@ it chose. To try it now: `php artisan duebook:remind --force`.
 
 ```
 cd ~
-alias php=/opt/cpanel/ea-php83/root/usr/bin/php
+P=/opt/cpanel/ea-php83/root/usr/bin/php
 git clone -b main https://github.com/fidatech/duebook.git duebook
 cd duebook
-composer install --no-dev --optimize-autoloader     # no Composer on the server? see below
+$P $(which composer) install --no-dev --optimize-autoloader     # no Composer on the server? see below
 cp .env.example .env            # then fill it in: see below
-php artisan key:generate
-php artisan migrate --force --seed
-php artisan app:create-admin
-php artisan config:cache && php artisan route:cache && php artisan view:cache
+$P artisan key:generate
+$P artisan migrate --force --seed
+$P artisan app:create-admin
+$P artisan config:cache && $P artisan route:cache && $P artisan view:cache
 
 # the web server shows ~/public_html: make it the public folder of the project
 cd ~
@@ -143,8 +143,8 @@ mv public_html public_html.old
 ln -s duebook/public public_html
 ```
 
-No Composer on the server: `cd ~/duebook && curl -sS https://getcomposer.org/installer | php`, then use
-`php composer.phar` in place of `composer` (`deploy.sh` finds `composer.phar` by itself).
+No Composer on the server: `cd ~/duebook && curl -sS https://getcomposer.org/installer | $P`, then use
+`$P composer.phar install ...` in place of the Composer line (`deploy.sh` finds `composer.phar` by itself).
 
 In `.env` on the server: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://getduebook.com`, the
 `DB_*` lines of the database (cPanel names look like `USERNAME_duebook`), and the mailbox:
