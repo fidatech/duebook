@@ -32,7 +32,10 @@ installed app (bottom bar, cards instead of tables, "Add to Home Screen").
   with the screenshot. A business chooses a plan on its trial and after the end. A paid period is never
   refunded or changed: in its last 30 days (a setting) the business may renew or choose another plan,
   which starts when the period ends. A higher plan can be taken at any time: it is paid in full and starts
-  that day. The page stays open after the trial or the subscription has ended. The dashboard shows the
+  that day. Plans can be paid by the month or by the year, with a Monthly / Yearly switch above them. A
+  plan with price 0 is the free plan: new businesses start on it (no trial) with no end date, and a
+  business may move to it from a trial or after its paid time ended, if its records fit.
+  The page stays open after the trial or the subscription has ended. The dashboard shows the
   plan, the running period with a bar, and the days left.
 
 **For the platform owner (`/admin`, separate sign-in)**
@@ -89,12 +92,12 @@ composer install
 cp .env.example .env
 php artisan key:generate
 # create the database named in .env (DB_DATABASE), then:
-php artisan migrate --seed          # the seed adds the plan: 199 USD a year
+php artisan migrate --seed          # the seed adds the plans: Free, Pro and Business
 php artisan app:create-admin        # your sign-in for /admin
 php artisan serve
 ```
 
-- A new business gets 7 free days (`TRIAL_DAYS`), then pays 199 USD a year (change it under `/admin` > Plans).
+- A new business starts on the Free plan (10 clients, 1 user). Pro is 4.99 USD a month or 47.90 a year, Business 14.99 or 143.90 (change them under `/admin` > Plans). With no free plan in use, a new business gets 7 free days (`TRIAL_DAYS`) instead.
 - Businesses sign up at `/register` (switch off with `REGISTRATION_OPEN=false`) or are opened by an
   administrator under `/admin` > Businesses.
 - For your own business: open it in `/admin` with status **Active** and **Paid until** empty; it never ends.

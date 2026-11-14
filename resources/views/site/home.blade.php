@@ -9,13 +9,13 @@
                 <p class="lead">DueBook keeps every client, contract and renewal date in one place, and emails you before each one is due. Loans, income and expenses too, in any currency.</p>
                 <div class="hero-actions">
                     @if ($signup)
-                        <a class="btn btn-main btn-big" href="{{ route('register') }}">Start your free trial</a>
+                        <a class="btn btn-main btn-big" href="{{ route('register') }}">{{ $free ? 'Get started free' : 'Start your free trial' }}</a>
                     @else
                         <a class="btn btn-main btn-big" href="{{ route('login') }}">Sign in</a>
                     @endif
                     <a class="btn btn-line btn-big" href="#how">See how it works</a>
                 </div>
-                @if ($signup)<p class="hero-note">Free for {{ $trial }} days. No card needed.</p>@endif
+                @if ($signup)<p class="hero-note">{{ $free ? 'Free to start. No card needed.' : 'Free for '.$trial.' days. No card needed.' }}</p>@endif
             </div>
 
             {{-- what the system shows every morning; the names and amounts are examples --}}
@@ -79,7 +79,7 @@
 <section class="band band-sheet" aria-labelledby="price">
     <div class="wrap inset">
         <h2 id="price">What it costs</h2>
-        <p class="intro">{{ $facts['price'] }}@if ($signup) The first {{ $trial }} days are free.@endif</p>
+        <p class="intro">{{ $facts['price'] }}@if ($signup && ! $free) The first {{ $trial }} days are free.@endif</p>
         @include('site._plans')
         <p style="margin:24px 0 0"><a href="{{ route('site.pricing') }}">Pricing, payment and refunds in full</a></p>
     </div>

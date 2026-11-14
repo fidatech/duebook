@@ -55,6 +55,12 @@ class Tenant extends Model
         return $this->status === self::TRIAL ? $this->trial_ends_at : $this->subscription_ends_at;
     }
 
+    /** On the free plan: active, nothing to pay and no end date. */
+    public function onFreePlan(): bool
+    {
+        return $this->status === self::ACTIVE && $this->subscription_ends_at === null && (bool) $this->plan?->isFree();
+    }
+
     public function isUsable(): bool
     {
         if ($this->status === self::SUSPENDED) {

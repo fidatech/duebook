@@ -61,8 +61,8 @@ class SiteController extends Controller
     public function pricing(): View
     {
         return $this->page('site.pricing', [
-            'title' => 'Pricing and free trial',
-            'description' => 'What '.config('app.name').' costs, what each plan includes, the free trial and the ways to pay.',
+            'title' => $this->facts()['free'] ? 'Pricing and free plan' : 'Pricing and free trial',
+            'description' => 'What '.config('app.name').' costs, what each plan includes, '.($this->facts()['free'] ? 'the free plan' : 'the free trial').' and the ways to pay.',
         ]);
     }
 
@@ -162,7 +162,7 @@ class SiteController extends Controller
         $facts = $this->facts();
         $text = "# $name\n\n> ".config('site.summary')."\n\n";
         $text .= "- Website: ".url('/')."\n- Made by: Fida Technologies (https://fida.af)\n- Kind: web application (software as a service), used in the browser on phones, tablets and computers\n- Language: English\n";
-        $text .= '- Price: '.$facts['price']."\n- Free trial: ".$facts['trial']." days, no card needed\n- Payment: ".$facts['payments']."\n- Refunds: payments are not refunded\n\n";
+        $text .= '- Price: '.$facts['price']."\n- ".($facts['free'] ? 'Free plan: yes, with no time limit and no card needed' : 'Free trial: '.$facts['trial'].' days, no card needed')."\n- Payment: ".$facts['payments']."\n- Refunds: payments are not refunded\n\n";
 
         $text .= "## What it does\n\n";
         foreach (config('site.features') as [, $title, $body]) {
@@ -196,6 +196,8 @@ class SiteController extends Controller
             'faqs' => $this->faqs(),
             'facts' => $this->facts(),
             'trial' => (int) Platform::get('trial_days'),
+            // with a free plan on offer a new business starts on it, and the site says so instead of "free trial"
+            'free' => $this->plans()->contains(fn (Plan $plan) => $plan->isFree()),
             'signup' => Platform::bool('registration'),
         ]);
     }
@@ -223,13 +225,19 @@ class SiteController extends Controller
     {
         $plans = $this->plans();
         $per = ['monthly' => 'a month', 'yearly' => 'a year', 'lifetime' => 'once'];
-        $priced = $plans->map(fn (Plan $plan) => $plan->name.' is '.rtrim(rtrim(number_format((float) $plan->price, 2), '0'), '.').' '.$plan->currency.' '.($per[$plan->interval] ?? $plan->interval));
+        // one sentence part for each plan name: "Pro is 4.99 USD a month or 47.90 USD a year"
+        $priced = $plans->groupBy('name')->map(fn (Collection $same, string $name) => $name.' is '.$same
+            ->map(fn (Plan $plan) => $plan->isFree() ? 'free' : $plan->priceText().' '.($per[$plan->interval] ?? $plan->interval))->unique()->join(' or '))->values();
+        $free = $plans->contains(fn (Plan $plan) => $plan->isFree());
+        $trial = (int) Platform::get('trial_days');
         $note = trim((string) Platform::get('pay_note'));
 
         $names = $this->accounts()->pluck('name');
 
         return [
-            'trial' => (int) Platform::get('trial_days'),
+            'trial' => $trial,
+            'free' => $free,
+            'start' => $free ? 'You can start on the free plan and stay on it as long as you like, and no card is needed.' : 'You can try everything free for '.$trial.' days, and no card is needed to start.',
             'price' => $priced->isEmpty() ? 'The price is shown when you sign up.' : ($priced->count() === 1 ? $priced->first() : 'There are '.$priced->count().' plans: '.$priced->join(', ', ' and ')).($note !== '' ? ' ('.$note.')' : '').'.',
             'payments' => $names->isEmpty() ? 'The ways to pay are shown on your Subscription page.' : 'You can pay by '.$names->join(', ', ' or ').'.',
         ];
@@ -242,7 +250,7 @@ class SiteController extends Controller
 
         return array_map(fn (array $faq) => [
             $faq[0],
-            strtr($faq[1], ['{trial}' => (string) $facts['trial'], '{price}' => $facts['price'], '{payments}' => $facts['payments']]),
+            strtr($faq[1], ['{trial}' => (string) $facts['trial'], '{start}' => $facts['start'], '{price}' => $facts['price'], '{payments}' => $facts['payments']]),
         ], config('site.faqs'));
     }
 }

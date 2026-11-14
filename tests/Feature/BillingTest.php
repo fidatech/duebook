@@ -232,4 +232,85 @@ class BillingTest extends TestCase
         $this->artisan('duebook:lifecycle')->assertSuccessful();
         $this->assertSame($lite->id, $tenant->fresh()->plan_id);
     }
+
+    /** Free, and Pro and Business by the month or the year, as the seeder makes them. */
+    private function threePlans(): array
+    {
+        return [
+            'free' => Plan::create(['name' => 'Free', 'price' => 0, 'currency' => 'USD', 'interval' => 'lifetime', 'max_clients' => 10, 'max_users' => 1, 'sort' => 1]),
+            'pro' => Plan::create(['name' => 'Pro', 'price' => 4.99, 'currency' => 'USD', 'interval' => 'monthly', 'max_clients' => 200, 'max_users' => 3, 'sort' => 2]),
+            'proYear' => Plan::create(['name' => 'Pro', 'price' => 47.90, 'currency' => 'USD', 'interval' => 'yearly', 'max_clients' => 200, 'max_users' => 3, 'sort' => 3]),
+            'business' => Plan::create(['name' => 'Business', 'price' => 14.99, 'currency' => 'USD', 'interval' => 'monthly', 'sort' => 4]),
+            'businessYear' => Plan::create(['name' => 'Business', 'price' => 143.90, 'currency' => 'USD', 'interval' => 'yearly', 'sort' => 5]),
+        ];
+    }
+
+    public function test_a_new_business_starts_on_the_free_plan_and_can_pay_by_the_month_or_the_year(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        $plans = $this->threePlans();
+        $account = PlatformAccount::create(['name' => 'HesabPay', 'type' => 'mobile', 'currency' => 'USD']);
+        $tenant = $this->business();
+        $this->signIn($tenant);
+
+        // no trial: active on Free, with no end date
+        $this->assertSame('active', $tenant->status);
+        $this->assertSame($plans['free']->id, $tenant->plan_id);
+        $this->assertNull($tenant->trial_ends_at);
+        $this->assertTrue($tenant->isUsable());
+        $this->get('/dashboard')->assertOk()->assertSee('You are on the Free plan');
+
+        // the page offers both ways to pay, and the monthly Pro plan is the one to pay first
+        $this->get('/subscription')->assertOk()
+            ->assertSee('Monthly')->assertSee('save 20%')->assertSee('4.99 USD')->assertSee('47.90 USD')->assertSee('143.90 USD')
+            ->assertSee('Pay 4.99 USD')->assertDontSee('Pay 0 USD');
+        $this->get('/subscription?plan='.$plans['proYear']->id)->assertOk()->assertSee('Pay 47.90 USD');
+
+        // a yearly payment starts today and runs for a year
+        $shot = UploadedFile::fake()->create('payment.png', 120, 'image/png');
+        $this->post('/subscription', ['plan_id' => $plans['proYear']->id, 'sent_on' => '2026-11-14', 'receipt' => $shot])->assertRedirect('/subscription');
+        $request = Subscription::firstOrFail();
+        $this->assertEquals(47.90, $request->amount);
+        $this->assertSame('2026-11-14', $request->starts_on->toDateString());
+        $this->assertSame('2027-11-14', $request->ends_on->toDateString());
+
+        $this->systemAdmin();
+        $this->put('/admin/subscriptions/'.$request->id, ['tenant_id' => $tenant->id, 'plan_id' => $plans['proYear']->id, 'starts_on' => '2026-11-14', 'ends_on' => '2027-11-14', 'amount' => '47.90', 'currency' => 'USD', 'paid_on' => '2026-11-14', 'platform_account_id' => $account->id])->assertRedirect();
+        $tenant->refresh();
+        $this->assertSame($plans['proYear']->id, $tenant->plan_id);
+        $this->assertSame('2027-11-14', $tenant->subscription_ends_at->toDateString());
+
+        // Business by the month is a higher plan than Pro by the year, although its price is smaller
+        $this->signIn($tenant);
+        $this->get('/subscription?plan='.$plans['business']->id)->assertOk()->assertSee('Higher plan')->assertSee('Pay 14.99 USD');
+        // the free plan cannot cut a paid period short
+        $this->post('/subscription', ['plan_id' => $plans['free']->id])->assertSessionHas('danger');
+        $this->assertSame($plans['proYear']->id, $tenant->fresh()->plan_id);
+    }
+
+    public function test_a_business_moves_to_the_free_plan_after_its_time_ended_if_it_fits(): void
+    {
+        $paid = Plan::create(['name' => 'Pro', 'price' => 4.99, 'currency' => 'USD', 'interval' => 'monthly', 'sort' => 2]);
+        $tenant = $this->business(); // on a trial of Pro: there is no free plan yet
+        $free = Plan::create(['name' => 'Free', 'price' => 0, 'currency' => 'USD', 'interval' => 'lifetime', 'max_clients' => 1, 'sort' => 1]);
+        $this->signIn($tenant);
+        $this->assertSame('trial', $tenant->status);
+        $tenant->update(['trial_ends_at' => '2026-11-01']);
+
+        \App\Models\Client::create(['name' => 'One']);
+        \App\Models\Client::create(['name' => 'Two']);
+        $this->post('/subscription', ['plan_id' => $free->id])->assertSessionHas('danger');
+        $this->assertSame($paid->id, $tenant->fresh()->plan_id);
+
+        \App\Models\Client::query()->where('name', 'Two')->delete();
+        $this->get('/subscription')->assertOk()->assertSee('Use the free plan');
+        $this->post('/subscription', ['plan_id' => $free->id])->assertRedirect('/subscription');
+        $tenant->refresh();
+        $this->assertSame($free->id, $tenant->plan_id);
+        $this->assertSame('active', $tenant->status);
+        $this->assertTrue($tenant->isUsable());
+        $this->assertSame(0, Subscription::count());
+        $this->get('/dashboard')->assertOk();
+    }
 }

@@ -4,7 +4,7 @@
 <div class="auth-card">
     <div class="ac-icon"><x-icon name="user-plus" /></div>
     <h2>{{ __('Create an account') }}</h2>
-    <p class="ac-sub">{{ __('Free for :days days. No card needed.', ['days' => (int) platform('trial_days')]) }}</p>
+    <p class="ac-sub">{{ \App\Models\Plan::free() ? __('Free to start. No card needed.') : __('Free for :days days. No card needed.', ['days' => (int) platform('trial_days')]) }}</p>
 
     <form method="POST" action="{{ route('register.store') }}">
         @csrf

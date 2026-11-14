@@ -109,6 +109,11 @@ class Subscription extends Model
         if ($paid->isEmpty()) {
             return;
         }
+        // a business that moved to the free plan after its paid time ended stays there until it pays again
+        $today = now($tenant->timezone ?: 'UTC')->toDateString();
+        if ($tenant->onFreePlan() && ! $paid->contains(fn (self $s) => $s->ends_on === null || $s->ends_on->toDateString() >= $today)) {
+            return;
+        }
         $forever = $paid->contains(fn (self $s) => $s->ends_on === null);
         $running = static::runningFor($tenant, $paid) ?? $paid->sortByDesc(fn (self $s) => $s->ends_on?->toDateString() ?? '9999-12-31')->first();
 

@@ -8,6 +8,7 @@
     $planNow = $tenant->plan;
     $ok = $tenant->isUsable();
     $onTrial = $tenant->status === 'trial';
+    $onFree = $tenant->onFreePlan();
     $noEnd = $tenant->status === 'active' && $info['to'] === null;
     $daysLeft = $info['left'];
     $tone = $tenant->status === 'suspended' || ! $ok ? 'danger' : ($onTrial || ($daysLeft !== null && $daysLeft <= 30) ? 'warning' : 'success');
@@ -16,6 +17,7 @@
     $per = ['monthly' => __('a month'), 'yearly' => __('a year'), 'lifetime' => __('once')];
     [$title, $sub] = match (true) {
         $tenant->status === 'suspended' => [__('Suspended'), __('Please contact support.')],
+        $onFree => [__('You are on the :plan plan', ['plan' => $planNow->name]), __('Nothing to pay and no end date. Upgrade when you need more.')],
         $noEnd => [__('Your subscription is active'), __('No end date')],
         ! $ok && $onTrial => [__('Your free trial has ended'), __('It ended on :date. Your records are safe: pay to continue where you stopped.', ['date' => fmt_date($info['to'])])],
         ! $ok => [__('Your subscription has ended'), __('It ended on :date. Your records are safe: pay to continue where you stopped.', ['date' => fmt_date($info['to'])])],
@@ -26,9 +28,10 @@
         $tenant->status === 'suspended' => [__('Suspended'), 'bg-danger-subtle text-danger-emphasis'],
         ! $ok => [__('Ended'), 'bg-danger-subtle text-danger-emphasis'],
         $onTrial => [__('Free trial'), 'bg-warning-subtle text-warning-emphasis'],
+        $onFree => [__('Free'), 'bg-success-subtle text-success-emphasis'],
         default => [__('Active'), 'bg-success-subtle text-success-emphasis'],
     };
-    $action = ! $ok ? __('Pay to continue') : ($onTrial ? __('Choose a plan') : __('Subscription'));
+    $action = ! $ok ? __('Pay to continue') : ($onTrial ? __('Choose a plan') : ($onFree ? __('Upgrade') : __('Subscription')));
 @endphp
 <div class="card h-auto">
     <div class="card-body">
@@ -40,7 +43,7 @@
                     <span class="badge {{ $badge[1] }}">{{ $badge[0] }}</span>
                 </div>
                 <div class="small text-muted">
-                    @if ($planNow)<span class="fw-semibold text-body">{{ $planNow->name }}</span> · <span dir="ltr">{{ rtrim(rtrim(number_format((float) $planNow->price, 2), '0'), '.') }} {{ $planNow->currency }}</span> / {{ $per[$planNow->interval] ?? $planNow->interval }} · @endif{{ $sub }}
+                    @if ($planNow && ! $onFree)<span class="fw-semibold text-body">{{ $planNow->name }}</span> · <span dir="ltr">{{ $planNow->priceText() }}</span> / {{ $planNow->isFree() ? __('forever') : ($per[$planNow->interval] ?? $planNow->interval) }} · @endif{{ $sub }}
                 </div>
             </div>
             @if ($ok && $daysLeft !== null && $tenant->status !== 'suspended')

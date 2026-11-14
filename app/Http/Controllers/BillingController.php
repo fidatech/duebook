@@ -51,6 +51,12 @@ class BillingController extends Controller
             // plans higher than the running one: these can be taken at any time, and start today
             'upgrades' => $plans->mapWithKeys(fn (Plan $p) => [$p->id => $this->isUpgrade($tenant, $p)])->all(),
             'period' => $plan ? $this->period($tenant, $plan) : null,
+            // the free plan can be taken, without paying, by a business on a trial or whose time has ended
+            'canFree' => $this->canFree($tenant),
+            // plans are paid by the month or by the year: the page shows one of the two at a time
+            'cycles' => $cycles = $this->cycles($plans),
+            'cycle' => $plan && in_array($plan->interval, $cycles, true) ? $plan->interval : ($cycles[0] ?? null),
+            'saving' => $this->saving($plans),
             'accounts' => PlatformAccount::where('is_active', true)->orderBy('name')->get(),
             'pending' => $pending = $tenant->subscriptions()->waiting()->with('plan')->orderByDesc('id')->first(),
             // the last request, when it was rejected: shown with its reason above the form
@@ -70,6 +76,9 @@ class BillingController extends Controller
             throw new UserError(__('Your payment is already waiting to be confirmed.'));
         }
         $picked = $plans->firstWhere('id', (int) $request->input('plan_id'));
+        if ($picked?->isFree()) {
+            return $this->moveToFree($tenant, $picked);
+        }
         if (! $this->open($tenant) && ! ($picked && $this->isUpgrade($tenant, $picked))) {
             throw new UserError(__('Your current plan is paid until :date. You can renew it or choose another plan from :from.', ['date' => fmt_date($tenant->endsOn()), 'from' => fmt_date($this->opensOn($tenant))]));
         }
@@ -118,7 +127,7 @@ class BillingController extends Controller
         if ($tenant->status === Tenant::SUSPENDED) {
             return false;
         }
-        if ($tenant->status === Tenant::TRIAL || ! $tenant->isUsable()) {
+        if ($tenant->status === Tenant::TRIAL || ! $tenant->isUsable() || $tenant->onFreePlan()) {
             return true;
         }
         $left = $tenant->daysLeft();
@@ -137,7 +146,52 @@ class BillingController extends Controller
         return $tenant->status === Tenant::ACTIVE && $tenant->isUsable() && $tenant->endsOn() !== null
             && $current && $plan->is_active && $plan->id !== $current->id
             && strtoupper($plan->currency) === strtoupper($current->currency)
-            && (float) $plan->price > (float) $current->price;
+            // by what a month costs, so a yearly plan is not "higher" than a bigger plan paid monthly
+            && round($plan->monthlyRate(), 4) > round($current->monthlyRate(), 4);
+    }
+
+    /** May the business move to the free plan now? Only from a trial or after its time ended: a paid period is never cut short. */
+    private function canFree(Tenant $tenant): bool
+    {
+        return $tenant->status !== Tenant::SUSPENDED && ! $tenant->onFreePlan()
+            && ($tenant->status === Tenant::TRIAL || ! $tenant->isUsable());
+    }
+
+    /** Nothing is paid for the free plan, so nothing is checked: the business is on it at once. */
+    private function moveToFree(Tenant $tenant, Plan $plan): RedirectResponse
+    {
+        if ($tenant->onFreePlan()) {
+            throw new UserError(__('You are already on this plan.'));
+        }
+        if (! $this->canFree($tenant)) {
+            throw new UserError(__('Your current plan is paid until :date. You can move to the free plan after that.', ['date' => fmt_date($tenant->endsOn())]));
+        }
+        if ($problem = $this->tooSmall($plan, Client::count(), User::where('tenant_id', $tenant->id)->count())) {
+            throw new UserError($problem);
+        }
+        $tenant->update(['plan_id' => $plan->id, 'status' => Tenant::ACTIVE, 'subscription_ends_at' => null]);
+
+        return redirect()->route('billing.show')->with('success', __('You are on the :plan plan now.', ['plan' => $plan->name]));
+    }
+
+    /** "monthly" and "yearly", when the paid plans on offer come in both; otherwise the page needs no switch. */
+    private function cycles(Collection $plans): array
+    {
+        $offered = $plans->filter(fn (Plan $p) => $p->is_active && ! $p->isFree())->pluck('interval')->unique();
+
+        return $offered->contains('monthly') && $offered->contains('yearly') ? ['monthly', 'yearly'] : [];
+    }
+
+    /** The most a business saves, in percent, by paying a plan for a year instead of twelve months. */
+    private function saving(Collection $plans): int
+    {
+        $offered = $plans->filter(fn (Plan $p) => $p->is_active && ! $p->isFree());
+
+        return (int) $offered->where('interval', 'yearly')->map(function (Plan $year) use ($offered) {
+            $month = $offered->first(fn (Plan $p) => $p->interval === 'monthly' && $p->name === $year->name && $p->currency === $year->currency);
+
+            return $month ? (int) round(100 * (1 - (float) $year->price / (12 * (float) $month->price))) : 0;
+        })->max();
     }
 
     /** The first day a business with a running paid period may renew or change its plan. */
@@ -162,7 +216,8 @@ class BillingController extends Controller
     /** The plan the page is about: the one picked in the address, else the plan of the business, else the first on offer. */
     private function chosen(Tenant $tenant, Collection $plans, mixed $picked): ?Plan
     {
-        $offered = $plans->where('is_active', true);
+        // the free plan is never paid for, so it is never the plan to pay
+        $offered = $plans->filter(fn (Plan $p) => $p->is_active && ! $p->isFree());
 
         return $offered->firstWhere('id', (int) $picked)
             ?? $offered->firstWhere('id', $tenant->plan_id)

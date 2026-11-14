@@ -9,7 +9,7 @@ return [
     // one or two sentences that say what it is, for search results and AI answers
     'summary' => 'DueBook is an online system for freelancers, agencies and small companies that sell services paid again and again: hosting, domains, software, support, subscriptions. It keeps every client, contract and renewal date in one place, reminds you by email before each due date, and tracks loans, income and expenses in several currencies.',
 
-    'description' => 'Track clients, contracts and yearly renewals, get reminders before every due date, and record loans, income and expenses in any currency. Free trial.',
+    'description' => 'Track clients, contracts and yearly renewals, get reminders before every due date, and record loans, income and expenses in any currency. Free to start.',
 
     'steps' => [
         ['Add your clients and what they pay for', 'For each client write what it is for, the amount, how often it is paid and the next due date. You can attach the signed contract.'],
@@ -38,12 +38,12 @@ return [
     ],
 
     // Questions people really ask, each with a direct answer first. The placeholders in
-    // braces are filled in from the live settings: {trial}, {price}, {payments}.
+    // braces are filled in from the live settings: {trial}, {start}, {price}, {payments}.
     'faqs' => [
         ['What is DueBook?', 'DueBook is an online system that keeps track of who should pay you and when. You record your clients and what each one pays for, and it reminds you by email before every due date. It also tracks money you lent or borrowed, and your other income and expenses.'],
         ['Who is DueBook for?', 'It is for freelancers, agencies and small companies whose customers pay again and again: hosting and domain resellers, software companies with yearly support contracts, agencies with retainers, and any business with renewals.'],
         ['How do the reminders work?', 'Once a day DueBook emails you a list of the payments that are coming up and the ones that are late. You choose how many days before a due date you want to be told, for example 30, 7 and 1. For any contract you can also switch on a reminder email to the client.'],
-        ['How much does DueBook cost?', '{price} You can try everything free for {trial} days, and no card is needed to start.'],
+        ['How much does DueBook cost?', '{price} {start}'],
         ['How do I pay for DueBook?', '{payments} You pay, upload a screenshot of the payment on your Subscription page, and your subscription is switched on after we check it, usually the same day.'],
         ['Can I get a refund or change my plan?', 'Payments are not refunded. You can move to a higher plan at any time: it is paid in full and starts that day. Any other change of plan is made when your paid period ends.'],
         ['Does DueBook work on a phone?', 'Yes. DueBook runs in the browser of any phone, tablet or computer and is designed for phones first. If you add it to your home screen it opens full screen like an installed app. There is nothing to download from an app store.'],

@@ -3,17 +3,18 @@
 @php
     $usable = $tenant->isUsable();
     $trial = $tenant->status === 'trial';
-    $forever = $tenant->status === 'active' && $tenant->endsOn() === null;
+    $onFree = $tenant->onFreePlan();
+    $forever = $tenant->status === 'active' && $tenant->endsOn() === null && ! $onFree;
     $choosing = $plans->isNotEmpty() && ! $forever && $tenant->status !== 'suspended';
     // a higher plan can be taken at any time; anything else only when choosing is open
     $immediate = $plan && ! empty($upgrades[$plan->id]);
     $canPay = $choosing && ($open || $immediate) && $plan && ! $pending && ! ($tooSmall[$plan->id] ?? null);
     // a paid period is still running: what is bought now starts when it ends
-    $nextPeriod = $open && ! $trial && $usable;
+    $nextPeriod = $open && ! $trial && $usable && ! $onFree;
     $kinds = \App\Http\Controllers\Admin\AccountController::TYPES;
     $per = ['monthly' => __('a month'), 'yearly' => __('a year'), 'lifetime' => __('once')];
-    // "199 USD", without useless zeros
-    $amount = fn ($p) => rtrim(rtrim(number_format((float) $p->price, 2), '0'), '.').' '.$p->currency;
+    // "199 USD" or "4.99 USD"
+    $amount = fn ($p) => $p->priceText();
     $price = $plan ? $amount($plan) : '';
     $note = platform('pay_note');
     // what a plan gives, as short lines for its card
@@ -61,14 +62,24 @@
         <h5 class="mb-0">{{ $pending ? __('Plans') : ($plans->where('is_active', true)->count() > 1 ? __('Choose your plan') : __('The plan')) }}</h5>
         @if ($note)<span class="small text-muted">{{ __('Prices') }} {{ __($note) }}</span>@endif
     </div>
+    @if ($cycles)
+        {{-- paid by the month or by the year: one of the two is shown at a time --}}
+        <div class="btn-group mb-3" role="group" aria-label="{{ __('Pay monthly or yearly') }}" data-cycles>
+            <button type="button" class="btn btn-sm {{ $cycle === 'monthly' ? 'btn-primary' : 'btn-outline-primary' }}" data-cycle-show="monthly" aria-pressed="{{ $cycle === 'monthly' ? 'true' : 'false' }}">{{ __('Monthly') }}</button>
+            <button type="button" class="btn btn-sm {{ $cycle === 'yearly' ? 'btn-primary' : 'btn-outline-primary' }}" data-cycle-show="yearly" aria-pressed="{{ $cycle === 'yearly' ? 'true' : 'false' }}">{{ __('Yearly') }}@if ($saving > 0) · {{ __('save :percent%', ['percent' => $saving]) }}@endif</button>
+        </div>
+    @endif
     <div class="row g-3 mb-3">
         @foreach ($plans as $option)
             @php
                 $isCurrent = $current && $current->id === $option->id;
                 $isChosen = ! $pending && $plan && $plan->id === $option->id;
                 $problem = $tooSmall[$option->id] ?? null;
+                $isFree = $option->isFree();
+                // a paid plan on offer belongs to one side of the Monthly / Yearly switch; the plan of the business always shows
+                $side = $cycles && $option->is_active && ! $isFree && ! $isCurrent && in_array($option->interval, $cycles, true) ? $option->interval : null;
             @endphp
-            <div class="col-12 col-md-6 col-xl-4">
+            <div class="col-12 col-md-6 col-xl-4 {{ $side && $side !== $cycle ? 'd-none' : '' }}" @if ($side) data-cycle="{{ $side }}" @endif>
                 <div class="card h-100 mb-0 {{ $isChosen ? 'border-primary' : '' }}" @if ($isChosen) style="border-width:2px" @endif>
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-start gap-2">
@@ -79,7 +90,7 @@
                                 @if ($isChosen && ! $isCurrent)<span class="badge bg-primary">{{ __('Selected') }}</span>@endif
                             </span>
                         </div>
-                        <div class="lh-1 mt-2"><span class="fw-bold" style="font-size:30px" dir="ltr">{{ $amount($option) }}</span> <span class="text-muted small">/ {{ $per[$option->interval] ?? $option->interval }}</span></div>
+                        <div class="lh-1 mt-2"><span class="fw-bold" style="font-size:30px" dir="ltr">{{ $amount($option) }}</span> <span class="text-muted small">/ {{ $isFree ? __('forever') : ($per[$option->interval] ?? $option->interval) }}</span></div>
                         @if ($isCurrent && $tenant->endsOn())
                             <div class="small mt-2 {{ $usable ? 'text-muted' : 'text-danger' }}">
                                 {{ ! $usable ? __('Ended on :date', ['date' => fmt_date($tenant->endsOn())]) : ($trial ? __('Free trial until :date', ['date' => fmt_date($tenant->endsOn())]) : __('Paid until :date', ['date' => fmt_date($tenant->endsOn())])) }}
@@ -96,8 +107,21 @@
                         <div class="mt-auto">
                             @if (! $option->is_active)
                                 <div class="small text-muted text-center">{{ __('This plan is no longer offered. Choose another one to renew.') }}</div>
+                            @elseif ($isFree && $isCurrent && $onFree)
+                                <div class="small text-muted text-center">{{ __('You are on this plan. Choose a higher plan when you need more.') }}</div>
                             @elseif ($problem)
                                 <div class="small text-danger text-center">{{ $problem }}</div>
+                            @elseif ($isFree && $pending)
+                            @elseif ($isFree && ! $canFree)
+                                <div class="small text-muted text-center">{{ __('You can move to this plan when your paid period ends.') }}</div>
+                            @elseif ($isFree && auth()->user()->isOwner())
+                                <form method="POST" action="{{ route('billing.store') }}">
+                                    @csrf
+                                    <input type="hidden" name="plan_id" value="{{ $option->id }}">
+                                    <button type="submit" class="btn btn-outline-primary w-100">{{ __('Use the free plan') }}</button>
+                                </form>
+                            @elseif ($isFree)
+                                <div class="small text-muted text-center">{{ __('Only the owner of the business can choose this plan.') }}</div>
                             @elseif (! $open && empty($upgrades[$option->id]))
                                 <div class="small text-muted text-center">{{ $isCurrent ? __('You can renew from :date.', ['date' => fmt_date($opensOn)]) : __('You can change to this plan from :date.', ['date' => fmt_date($opensOn)]) }}</div>
                             @elseif ($pending)
@@ -279,6 +303,19 @@
 
 @push('scripts')
 <script>
+document.addEventListener('click', function (e) {
+    // Monthly / Yearly above the plans
+    var pick = e.target.closest('[data-cycle-show]');
+    if (!pick) return;
+    var cycle = pick.getAttribute('data-cycle-show');
+    document.querySelectorAll('[data-cycle]').forEach(function (card) { card.classList.toggle('d-none', card.getAttribute('data-cycle') !== cycle); });
+    document.querySelectorAll('[data-cycle-show]').forEach(function (button) {
+        var on = button === pick;
+        button.classList.toggle('btn-primary', on);
+        button.classList.toggle('btn-outline-primary', !on);
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+});
 document.addEventListener('click', function (e) {
     // "Copy" beside the account number
     var button = e.target.closest('[data-copy]');

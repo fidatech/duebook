@@ -79,4 +79,16 @@ class SiteTest extends TestCase
         $this->signIn($this->business());
         $this->get('/')->assertOk()->assertSee('Open '.config('app.name'));
     }
+
+    public function test_the_site_shows_the_free_plan_and_both_ways_to_pay(): void
+    {
+        Plan::create(['name' => 'Free', 'price' => 0, 'currency' => 'USD', 'interval' => 'lifetime', 'max_clients' => 10, 'max_users' => 1, 'sort' => 1]);
+        Plan::create(['name' => 'Pro', 'price' => 4.99, 'currency' => 'USD', 'interval' => 'monthly', 'max_clients' => 200, 'sort' => 2]);
+        Plan::create(['name' => 'Pro', 'price' => 47.90, 'currency' => 'USD', 'interval' => 'yearly', 'max_clients' => 200, 'sort' => 3]);
+
+        $this->get('/pricing')->assertOk()
+            ->assertSee('There are 2 plans: Free is free and Pro is 4.99 USD a month or 47.90 USD a year')
+            ->assertSee('Monthly')->assertSee('save 20%')->assertSee('Get started free')->assertDontSee('free trial');
+        $this->get('/')->assertOk()->assertSee('Get started free')->assertDontSee('Start your free trial');
+    }
 }

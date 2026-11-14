@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
-/** A new business signs up by itself and starts its free trial. */
+/** A new business signs up by itself and starts on the free plan, or on a free trial when no free plan is offered. */
 class RegisterController extends Controller
 {
     public function show(): View

@@ -9,7 +9,7 @@
 <section class="band">
     <div class="wrap inset">
         <h1>Pricing</h1>
-        <p class="intro" style="margin-top:18px">{{ $facts['price'] }}@if ($signup) Try everything free for {{ $trial }} days first; no card is needed.@endif</p>
+        <p class="intro" style="margin-top:18px">{{ $facts['price'] }}@if ($signup && $free) Start on the free plan; no card is needed.@elseif ($signup) Try everything free for {{ $trial }} days first; no card is needed.@endif</p>
         @include('site._plans')
 
         <div class="pay-ways">
