@@ -28,7 +28,9 @@ installed app (bottom bar, cards instead of tables, "Add to Home Screen").
 - **Subscription**: every plan on offer with the current one marked, how to pay, and an "I have paid" form
   with the screenshot. A business chooses a plan on its trial and after the end. A paid period is never
   refunded or changed: in its last 30 days (a setting) the business may renew or choose another plan,
-  which starts when the period ends. The page stays open after the trial or the subscription has ended.
+  which starts when the period ends. A higher plan can be taken at any time: it is paid in full and starts
+  that day. The page stays open after the trial or the subscription has ended. The dashboard shows the
+  plan, the running period with a bar, and the days left.
 
 **For the platform owner (`/admin`, separate sign-in)**
 

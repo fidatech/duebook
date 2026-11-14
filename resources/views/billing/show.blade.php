@@ -5,7 +5,9 @@
     $trial = $tenant->status === 'trial';
     $forever = $tenant->status === 'active' && $tenant->endsOn() === null;
     $choosing = $plans->isNotEmpty() && ! $forever && $tenant->status !== 'suspended';
-    $canPay = $choosing && $open && $plan && ! $pending && ! ($tooSmall[$plan->id] ?? null);
+    // a higher plan can be taken at any time; anything else only when choosing is open
+    $immediate = $plan && ! empty($upgrades[$plan->id]);
+    $canPay = $choosing && ($open || $immediate) && $plan && ! $pending && ! ($tooSmall[$plan->id] ?? null);
     // a paid period is still running: what is bought now starts when it ends
     $nextPeriod = $open && ! $trial && $usable;
     $kinds = \App\Http\Controllers\Admin\AccountController::TYPES;
@@ -14,11 +16,6 @@
     $amount = fn ($p) => rtrim(rtrim(number_format((float) $p->price, 2), '0'), '.').' '.$p->currency;
     $price = $plan ? $amount($plan) : '';
     $note = platform('pay_note');
-    $tone = ! $usable ? 'danger' : ($trial ? 'warning' : 'success');
-    $icon = ! $usable ? 'triangle-exclamation' : ($trial ? 'hourglass-half' : 'circle-check');
-    // how much of the free trial is used, for the bar
-    $trialDays = max(1, (int) platform('trial_days'));
-    $used = $trial && $usable && $left !== null ? min(100, max(4, (int) round(100 * ($trialDays - $left) / $trialDays))) : null;
     // what a plan gives, as short lines for its card
     $features = fn ($p) => [
         $p->max_clients ? __('Up to :count clients', ['count' => number_format($p->max_clients)]) : __('Clients and contracts without limit'),
@@ -31,42 +28,8 @@
 @section('content')
 <x-page-header :title="__('Subscription')" icon="credit-card" />
 
-{{-- where the business stands, and the price --}}
-<div class="card h-auto">
-    <div class="card-body">
-        <div class="d-flex flex-wrap align-items-center gap-3">
-            <span class="sc-icon icon-soft {{ $tone }} flex-shrink-0" style="width:52px;height:52px;font-size:21px"><x-icon :name="$icon" /></span>
-            <div class="min-w-0 flex-grow-1">
-                @if ($tenant->status === 'suspended')
-                    <div class="fw-bold fs-5">{{ __('Suspended') }}</div>
-                    <div class="small text-muted">{{ __('Please contact support.') }}</div>
-                @elseif ($forever)
-                    <div class="fw-bold fs-5">{{ __('Active') }}</div>
-                    <div class="small text-muted">{{ __('No end date') }}</div>
-                @elseif (! $usable)
-                    <div class="fw-bold fs-5">{{ $trial ? __('Your free trial has ended') : __('Your subscription has ended') }}</div>
-                    <div class="small text-muted">{{ __('It ended on :date. Your records are safe: pay to continue where you stopped.', ['date' => fmt_date($tenant->endsOn())]) }}</div>
-                @elseif ($trial)
-                    <div class="fw-bold fs-5">{{ $left > 0 ? trans_choice('{1} 1 day of free trial left|[2,*] :count days of free trial left', $left, ['count' => $left]) : __('Your free trial ends today') }}</div>
-                    <div class="small text-muted">{{ __('Free until :date. Pay any time before then and you lose nothing.', ['date' => fmt_date($tenant->endsOn())]) }}</div>
-                @else
-                    <div class="fw-bold fs-5">{{ __('Active') }}</div>
-                    <div class="small text-muted">{{ __('Paid until :date', ['date' => fmt_date($tenant->endsOn())]) }}@if ($left !== null && $left <= 30) · {{ trans_choice('{0} ends today|{1} 1 day left|[2,*] :count days left', $left, ['count' => $left]) }}@endif</div>
-                @endif
-            </div>
-            @if ($current)
-                <div class="text-end flex-shrink-0">
-                    <div class="small fw-semibold text-muted text-uppercase">{{ __('Your plan') }}</div>
-                    <div class="fw-bold fs-5 lh-sm">{{ $current->name }}</div>
-                    <div class="small text-muted" dir="ltr">{{ $amount($current) }} / {{ $per[$current->interval] ?? $current->interval }}</div>
-                </div>
-            @endif
-        </div>
-        @if ($used !== null)
-            <div class="progress mt-3" style="height:6px" role="progressbar" aria-valuenow="{{ $used }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-warning" style="width:{{ $used }}%"></div></div>
-        @endif
-    </div>
-</div>
+{{-- where the business stands: status, plan, the running period and the days left --}}
+@include('partials.plan-status', ['tenant' => $tenant, 'link' => false])
 
 @if ($pending)
     <div class="card h-auto">
@@ -112,6 +75,7 @@
                             <span class="fw-bold fs-5">{{ $option->name }}</span>
                             <span class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
                                 @if ($isCurrent)<span class="badge bg-success-subtle text-success-emphasis">{{ __('Your current plan') }}</span>@endif
+                                @if (! $isCurrent && ! empty($upgrades[$option->id]))<span class="badge bg-primary-subtle text-primary-emphasis">{{ __('Higher plan') }}</span>@endif
                                 @if ($isChosen && ! $isCurrent)<span class="badge bg-primary">{{ __('Selected') }}</span>@endif
                             </span>
                         </div>
@@ -134,10 +98,14 @@
                                 <div class="small text-muted text-center">{{ __('This plan is no longer offered. Choose another one to renew.') }}</div>
                             @elseif ($problem)
                                 <div class="small text-danger text-center">{{ $problem }}</div>
-                            @elseif (! $open)
+                            @elseif (! $open && empty($upgrades[$option->id]))
                                 <div class="small text-muted text-center">{{ $isCurrent ? __('You can renew from :date.', ['date' => fmt_date($opensOn)]) : __('You can change to this plan from :date.', ['date' => fmt_date($opensOn)]) }}</div>
                             @elseif ($pending)
                                 @if ($pending->plan_id === $option->id)<div class="small text-muted text-center">{{ __('Your payment for this plan is being checked.') }}</div>@endif
+                            @elseif ($isChosen && ! empty($upgrades[$option->id]))
+                                <a class="btn btn-primary w-100" href="#pay"><x-icon name="arrow-up" class="me-1" /> {{ __('Upgrade: pay below') }}</a>
+                            @elseif (! empty($upgrades[$option->id]))
+                                <a class="btn btn-outline-primary w-100" href="{{ route('billing.show', ['plan' => $option->id]) }}#pay"><x-icon name="arrow-up" class="me-1" /> {{ __('Upgrade now') }}</a>
                             @elseif ($isChosen)
                                 <a class="btn btn-primary w-100" href="#pay"><x-icon name="check" class="me-1" /> {{ __('Selected: pay below') }}</a>
                             @else
@@ -152,17 +120,20 @@
 @endif
 
 @if ($choosing && ! $pending)
-    <div class="alert {{ $open ? 'alert-info' : 'alert-secondary' }} d-flex align-items-start gap-2 py-2">
+    <div class="alert {{ $open || $immediate ? 'alert-info' : 'alert-secondary' }} d-flex align-items-start gap-2 py-2">
         <x-icon name="circle-info" class="mt-1" />
         <div class="small">
-            @if (! $open)
+            @if ($immediate)
+                {{ __('Upgrade to :plan: it starts today and runs for a full period. The days left on your current plan are not paid back.', ['plan' => $plan->name]) }}
+            @elseif (! $open)
                 {{ __('Your plan is paid until :date. From :from you can renew it or choose another plan for the next period.', ['date' => fmt_date($tenant->endsOn()), 'from' => fmt_date($opensOn)]) }}
+                @if (array_filter($upgrades)){{ __('You can upgrade to a higher plan at any time.') }}@endif
             @elseif ($nextPeriod)
-                {{ __('Your current plan stays as it is until :date. What you choose now starts the day after.', ['date' => fmt_date($tenant->endsOn())]) }}
+                {{ __('Your current plan stays as it is until :date. What you choose now starts the day after. A higher plan starts today.', ['date' => fmt_date($tenant->endsOn())]) }}
             @else
                 {{ __('Choose a plan, pay, and send the screenshot.') }}
             @endif
-            <strong>{{ __('Payments are not refunded, and a paid period cannot be changed to another plan.') }}</strong>
+            <strong>{{ __('Payments are not refunded.') }}</strong>
         </div>
     </div>
 @endif

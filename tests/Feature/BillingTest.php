@@ -161,43 +161,75 @@ class BillingTest extends TestCase
         $this->get('/subscription')->assertOk()->assertSee('for Professional');
     }
 
-    public function test_a_paid_plan_can_only_be_renewed_or_changed_near_its_end_and_the_new_plan_starts_after_it(): void
+    /** A business whose Basic plan (99) is paid from today for a year, with a cheaper and a higher plan on offer. */
+    private function paidBasic(): array
     {
         Mail::fake();
         Storage::fake('local');
-        $basic = Plan::create(['name' => 'Basic', 'price' => 99, 'currency' => 'USD', 'interval' => 'yearly', 'sort' => 1]);
-        $pro = Plan::create(['name' => 'Professional', 'price' => 199, 'currency' => 'USD', 'interval' => 'yearly', 'sort' => 2]);
+        $lite = Plan::create(['name' => 'Lite', 'price' => 49, 'currency' => 'USD', 'interval' => 'yearly', 'sort' => 1]);
+        $basic = Plan::create(['name' => 'Basic', 'price' => 99, 'currency' => 'USD', 'interval' => 'yearly', 'sort' => 2]);
+        $pro = Plan::create(['name' => 'Professional', 'price' => 199, 'currency' => 'USD', 'interval' => 'yearly', 'sort' => 3]);
         $account = PlatformAccount::create(['name' => 'HesabPay', 'type' => 'mobile', 'currency' => 'USD']);
         $tenant = $this->business();
-        // Basic is paid from today for a year
         Subscription::create(['tenant_id' => $tenant->id, 'plan_id' => $basic->id, 'platform_account_id' => $account->id, 'amount' => 99, 'currency' => 'USD', 'starts_on' => '2026-11-14', 'ends_on' => '2027-11-14', 'paid_on' => '2026-11-14'])->apply();
-        $owner = $this->signIn($tenant);
-        $shot = fn () => UploadedFile::fake()->create('payment.png', 120, 'image/png');
+        $this->signIn($tenant);
 
-        // far from the end: every plan is shown, none can be paid for
-        $this->get('/subscription?plan='.$pro->id)->assertOk()
-            ->assertSee('Basic')->assertSee('Professional')->assertSee('Your current plan')
-            ->assertSee('Payments are not refunded')->assertSee('You can change to this plan from 15 Oct 2027.')->assertDontSee('I have paid');
-        $this->post('/subscription', ['plan_id' => $pro->id, 'sent_on' => '2026-11-14', 'receipt' => $shot()])->assertSessionHas('danger');
+        return [$tenant, $lite, $basic, $pro, $account];
+    }
+
+    private function screenshot(): UploadedFile
+    {
+        return UploadedFile::fake()->create('payment.png', 120, 'image/png');
+    }
+
+    public function test_a_higher_plan_can_be_taken_at_any_time_and_starts_today(): void
+    {
+        [$tenant, $lite, $basic, $pro, $account] = $this->paidBasic();
+
+        // all plans are shown; the running one is marked; only the higher one can be taken now
+        $this->get('/subscription')->assertOk()
+            ->assertSee('Lite')->assertSee('Basic')->assertSee('Professional')
+            ->assertSee('Your current plan')->assertSee('Upgrade now')->assertSee('Payments are not refunded')
+            ->assertSee('You can change to this plan from 15 Oct 2027.')->assertDontSee('I have paid');
+        $this->get('/dashboard')->assertOk()->assertSee('Your subscription is active')->assertSee('365')->assertSee('days left')->assertSee('14 Nov 2027');
+
+        // the cheaper plan must wait for the end of the paid period
+        $this->post('/subscription', ['plan_id' => $lite->id, 'sent_on' => '2026-11-14', 'receipt' => $this->screenshot()])->assertSessionHas('danger');
         $this->assertSame(1, Subscription::count());
 
-        // in the last 30 days: Professional is chosen for the next period
+        // the higher plan: pay in full, it starts today
+        $this->get('/subscription?plan='.$pro->id)->assertOk()->assertSee('Pay 199 USD')->assertSee('I have paid')->assertSee('it starts today');
+        $this->post('/subscription', ['plan_id' => $pro->id, 'sent_on' => '2026-11-14', 'receipt' => $this->screenshot()])->assertRedirect('/subscription');
+        $request = Subscription::orderByDesc('id')->firstOrFail();
+        $this->assertSame('2026-11-14', $request->starts_on->toDateString());
+        $this->assertSame('2027-11-14', $request->ends_on->toDateString());
+
+        $this->systemAdmin();
+        $this->put('/admin/subscriptions/'.$request->id, ['tenant_id' => $tenant->id, 'plan_id' => $pro->id, 'starts_on' => '2026-11-14', 'ends_on' => '2027-11-14', 'amount' => '199', 'currency' => 'USD', 'paid_on' => '2026-11-14', 'platform_account_id' => $account->id])->assertRedirect();
+        $this->assertSame($pro->id, $tenant->fresh()->plan_id);
+    }
+
+    public function test_another_plan_chosen_near_the_end_starts_when_the_paid_period_ends(): void
+    {
+        [$tenant, $lite, $basic, $pro, $account] = $this->paidBasic();
+
+        // in the last 30 days the cheaper plan can be chosen for the next period
         $this->travelTo(\Illuminate\Support\Carbon::parse('2027-11-01 10:00:00', 'UTC'));
-        $this->get('/subscription?plan='.$pro->id)->assertOk()->assertSee('Pay 199 USD')->assertSee('I have paid')->assertSee('starts the day after');
-        $this->post('/subscription', ['plan_id' => $pro->id, 'sent_on' => '2027-11-01', 'receipt' => $shot()])->assertRedirect('/subscription');
+        $this->get('/subscription?plan='.$lite->id)->assertOk()->assertSee('Pay 49 USD')->assertSee('I have paid')->assertSee('starts the day after');
+        $this->post('/subscription', ['plan_id' => $lite->id, 'sent_on' => '2027-11-01', 'receipt' => $this->screenshot()])->assertRedirect('/subscription');
         $request = Subscription::orderByDesc('id')->firstOrFail();
         $this->assertSame('2027-11-15', $request->starts_on->toDateString());
         $this->assertSame('2028-11-15', $request->ends_on->toDateString());
 
         // confirmed: paid until the new end, but still on Basic until the new period starts
         $this->systemAdmin();
-        $this->put('/admin/subscriptions/'.$request->id, ['tenant_id' => $tenant->id, 'plan_id' => $pro->id, 'starts_on' => '2027-11-15', 'ends_on' => '2028-11-15', 'amount' => '199', 'currency' => 'USD', 'paid_on' => '2027-11-01', 'platform_account_id' => $account->id])->assertRedirect();
+        $this->put('/admin/subscriptions/'.$request->id, ['tenant_id' => $tenant->id, 'plan_id' => $lite->id, 'starts_on' => '2027-11-15', 'ends_on' => '2028-11-15', 'amount' => '49', 'currency' => 'USD', 'paid_on' => '2027-11-01', 'platform_account_id' => $account->id])->assertRedirect();
         $this->assertSame($basic->id, $tenant->fresh()->plan_id);
         $this->assertSame('2028-11-15', $tenant->fresh()->subscription_ends_at->toDateString());
 
         // the day the new period starts, the plan changes by itself
         $this->travelTo(\Illuminate\Support\Carbon::parse('2027-11-15 10:00:00', 'UTC'));
         $this->artisan('duebook:lifecycle')->assertSuccessful();
-        $this->assertSame($pro->id, $tenant->fresh()->plan_id);
+        $this->assertSame($lite->id, $tenant->fresh()->plan_id);
     }
 }

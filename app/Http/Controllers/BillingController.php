@@ -48,6 +48,8 @@ class BillingController extends Controller
             // a paid period cannot be changed or paid back: choosing opens only near its end (or after it)
             'open' => $this->open($tenant),
             'opensOn' => $this->opensOn($tenant),
+            // plans higher than the running one: these can be taken at any time, and start today
+            'upgrades' => $plans->mapWithKeys(fn (Plan $p) => [$p->id => $this->isUpgrade($tenant, $p)])->all(),
             'period' => $plan ? $this->period($tenant, $plan) : null,
             'accounts' => PlatformAccount::where('is_active', true)->orderBy('name')->get(),
             'pending' => $pending = $tenant->subscriptions()->waiting()->with('plan')->orderByDesc('id')->first(),
@@ -67,7 +69,8 @@ class BillingController extends Controller
         if ($tenant->subscriptions()->waiting()->exists()) {
             throw new UserError(__('Your payment is already waiting to be confirmed.'));
         }
-        if (! $this->open($tenant)) {
+        $picked = $plans->firstWhere('id', (int) $request->input('plan_id'));
+        if (! $this->open($tenant) && ! ($picked && $this->isUpgrade($tenant, $picked))) {
             throw new UserError(__('Your current plan is paid until :date. You can renew it or choose another plan from :from.', ['date' => fmt_date($tenant->endsOn()), 'from' => fmt_date($this->opensOn($tenant))]));
         }
 
@@ -121,6 +124,20 @@ class BillingController extends Controller
         $left = $tenant->daysLeft();
 
         return $left !== null && $left <= (int) platform('renew_open_days');
+    }
+
+    /**
+     * Is this plan a step up from the paid period that is running? Then it can be taken at any
+     * time: it is paid in full and starts today, and the days left on the old plan are not paid back.
+     */
+    private function isUpgrade(Tenant $tenant, Plan $plan): bool
+    {
+        $current = $tenant->plan;
+
+        return $tenant->status === Tenant::ACTIVE && $tenant->isUsable() && $tenant->endsOn() !== null
+            && $current && $plan->is_active && $plan->id !== $current->id
+            && strtoupper($plan->currency) === strtoupper($current->currency)
+            && (float) $plan->price > (float) $current->price;
     }
 
     /** The first day a business with a running paid period may renew or change its plan. */
@@ -218,7 +235,8 @@ class BillingController extends Controller
     {
         $today = Carbon::parse(today_iso());
         $paidUntil = $tenant->status === Tenant::ACTIVE ? $tenant->subscription_ends_at : null;
-        $from = $paidUntil && $paidUntil->gte($today) ? $paidUntil->copy()->addDay() : $today;
+        // an upgrade starts today; a renewal or another plan starts when the paid time ends
+        $from = $paidUntil && $paidUntil->gte($today) && ! $this->isUpgrade($tenant, $plan) ? $paidUntil->copy()->addDay() : $today;
 
         $until = match ($plan->interval) {
             'monthly' => $from->copy()->addMonthNoOverflow(),

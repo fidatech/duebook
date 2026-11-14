@@ -78,6 +78,35 @@ class Tenant extends Model
         return (int) $today->diffInDays(\Illuminate\Support\Carbon::parse($end->toDateString()), false);
     }
 
+    /**
+     * The period that is running: when it started, when it ends, how many days it has, how many
+     * are used and left, and the share used in percent. A trial runs from the day of sign-up;
+     * a paid business from the start of the paid period that covers today.
+     *
+     * @return array{from: ?\Illuminate\Support\Carbon, to: ?\Illuminate\Support\Carbon, total: ?int, used: ?int, left: ?int, percent: ?int}
+     */
+    public function period(): array
+    {
+        $zone = $this->timezone ?: 'UTC';
+        $to = $this->endsOn();
+        $from = $this->status === self::TRIAL
+            ? ($this->created_at ? \Illuminate\Support\Carbon::parse($this->created_at->copy()->timezone($zone)->toDateString()) : null)
+            : Subscription::runningFor($this)?->starts_on;
+        $left = $this->daysLeft();
+
+        $total = $from && $to ? max(1, (int) $from->diffInDays(\Illuminate\Support\Carbon::parse($to->toDateString()), false)) : null;
+        $used = $total !== null && $left !== null ? min($total, max(0, $total - max(0, $left))) : null;
+
+        return [
+            'from' => $from,
+            'to' => $to,
+            'total' => $total,
+            'used' => $used,
+            'left' => $left,
+            'percent' => $total ? (int) round(100 * $used / $total) : null,
+        ];
+    }
+
     public function statusLabel(): string
     {
         if ($this->status === self::SUSPENDED) {

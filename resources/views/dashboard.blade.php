@@ -17,6 +17,8 @@
     <a class="btn btn-primary" href="{{ route('contracts.create') }}"><x-icon name="plus" class="me-1" /> {{ __('New contract') }}</a>
 </x-page-header>
 
+@include('partials.plan-status', ['tenant' => tenant(), 'link' => true])
+
 @if ($clients === 0)
     <div class="card">
         <div class="card-body">
