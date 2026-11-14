@@ -49,9 +49,9 @@ class BillingTest extends TestCase
         $this->get('/subscription')->assertOk()->assertSee('Your free trial has ended')->assertSee('+93784006200');
 
         // the screenshot is a must
-        $this->post('/subscription', ['sent_on' => '2026-11-14'])->assertSessionHasErrors('receipt');
+        $this->post('/subscription', ['plan_id' => Plan::firstOrFail()->id, 'sent_on' => '2026-11-14'])->assertSessionHasErrors('receipt');
 
-        $this->post('/subscription', ['sent_on' => '2026-11-14', 'platform_account_id' => $account->id, 'reference' => 'TX-77', 'receipt' => $shot()])->assertRedirect('/subscription');
+        $this->post('/subscription', ['plan_id' => Plan::firstOrFail()->id, 'sent_on' => '2026-11-14', 'platform_account_id' => $account->id, 'reference' => 'TX-77', 'receipt' => $shot()])->assertRedirect('/subscription');
 
         // the platform owner is told by email, with the screenshot
         Mail::assertSent(PaymentRequested::class, fn (PaymentRequested $mail) => $mail->hasTo('admin@duebook.test') && count($mail->attachments()) === 1);
@@ -65,7 +65,7 @@ class BillingTest extends TestCase
         $this->assertFalse($tenant->fresh()->isUsable());
 
         $this->get('/subscription')->assertOk()->assertSee('Your payment is being checked');
-        $this->post('/subscription', ['sent_on' => '2026-11-14', 'receipt' => $shot()])->assertSessionHas('danger');
+        $this->post('/subscription', ['plan_id' => Plan::firstOrFail()->id, 'sent_on' => '2026-11-14', 'receipt' => $shot()])->assertSessionHas('danger');
         $this->assertSame(1, Subscription::count());
         Storage::disk('local')->assertExists(Subscription::firstOrFail()->receipt_path);
 
@@ -104,7 +104,7 @@ class BillingTest extends TestCase
         $owner = $this->signIn($tenant);
         $shot = fn () => UploadedFile::fake()->create('payment.png', 120, 'image/png');
 
-        $this->post('/subscription', ['sent_on' => '2026-11-14', 'receipt' => $shot()])->assertRedirect('/subscription');
+        $this->post('/subscription', ['plan_id' => Plan::firstOrFail()->id, 'sent_on' => '2026-11-14', 'receipt' => $shot()])->assertRedirect('/subscription');
         $request = Subscription::firstOrFail();
 
         $this->systemAdmin();
@@ -123,8 +123,41 @@ class BillingTest extends TestCase
         // the business sees the reason and can send a new screenshot
         $this->actingAs($owner, 'web');
         $this->get('/subscription')->assertOk()->assertSee('Your payment was not accepted')->assertSee('less than the price of the plan')->assertSee('I have paid');
-        $this->post('/subscription', ['sent_on' => '2026-11-14', 'receipt' => $shot()])->assertRedirect('/subscription');
+        $this->post('/subscription', ['plan_id' => Plan::firstOrFail()->id, 'sent_on' => '2026-11-14', 'receipt' => $shot()])->assertRedirect('/subscription');
         $this->assertSame(2, Subscription::count());
         $this->get('/subscription')->assertOk()->assertSee('Your payment is being checked')->assertDontSee('Each payment needs its own screenshot')->assertDontSee('Please pay the rest');
+    }
+
+    public function test_a_business_sees_all_plans_and_pays_for_the_one_it_chooses(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        $starter = Plan::create(['name' => 'Starter', 'price' => 99, 'currency' => 'USD', 'interval' => 'yearly', 'max_clients' => 1, 'sort' => 1]);
+        $pro = Plan::create(['name' => 'Professional', 'price' => 199, 'currency' => 'USD', 'interval' => 'yearly', 'sort' => 2]);
+        Plan::create(['name' => 'Hidden', 'price' => 5, 'currency' => 'USD', 'interval' => 'yearly', 'is_active' => false]);
+        $tenant = $this->business(); // starts on the first plan: Starter
+        $this->signIn($tenant);
+
+        $this->get('/subscription')->assertOk()
+            ->assertSee('Choose your plan')->assertSee('Starter')->assertSee('Professional')->assertDontSee('Hidden')
+            ->assertSee('Your current plan')->assertSee('Pay 99 USD');
+        $this->get('/subscription?plan='.$pro->id)->assertOk()->assertSee('Pay 199 USD')->assertSee('Selected: pay below');
+
+        // a plan that is not offered cannot be paid for
+        $shot = fn () => UploadedFile::fake()->create('payment.png', 120, 'image/png');
+        $this->post('/subscription', ['plan_id' => 999, 'sent_on' => '2026-11-14', 'receipt' => $shot()])->assertSessionHasErrors('plan_id');
+
+        // a plan too small for the business cannot be chosen
+        \App\Models\Client::create(['name' => 'One']);
+        \App\Models\Client::create(['name' => 'Two']);
+        $this->get('/subscription')->assertOk()->assertSee('You have 2 clients and this plan allows 1.');
+        $this->post('/subscription', ['plan_id' => $starter->id, 'sent_on' => '2026-11-14', 'receipt' => $shot()])->assertSessionHas('danger');
+        $this->assertSame(0, Subscription::count());
+
+        $this->post('/subscription', ['plan_id' => $pro->id, 'sent_on' => '2026-11-14', 'receipt' => $shot()])->assertRedirect('/subscription');
+        $request = Subscription::firstOrFail();
+        $this->assertSame($pro->id, $request->plan_id);
+        $this->assertEquals(199, $request->amount);
+        $this->get('/subscription')->assertOk()->assertSee('for Professional');
     }
 }

@@ -4,23 +4,26 @@
     $usable = $tenant->isUsable();
     $trial = $tenant->status === 'trial';
     $forever = $tenant->status === 'active' && $tenant->endsOn() === null;
-    $canPay = $plan && ! $pending && ! $forever && $tenant->status !== 'suspended';
+    $choosing = $plans->isNotEmpty() && ! $forever && $tenant->status !== 'suspended';
+    $canPay = $choosing && $plan && ! $pending && ! ($tooSmall[$plan->id] ?? null);
     $kinds = \App\Http\Controllers\Admin\AccountController::TYPES;
     $per = ['monthly' => __('a month'), 'yearly' => __('a year'), 'lifetime' => __('once')];
     // "199 USD", without useless zeros
-    $price = $plan ? rtrim(rtrim(number_format((float) $plan->price, 2), '0'), '.').' '.$plan->currency : '';
+    $amount = fn ($p) => rtrim(rtrim(number_format((float) $p->price, 2), '0'), '.').' '.$p->currency;
+    $price = $plan ? $amount($plan) : '';
     $note = platform('pay_note');
     $tone = ! $usable ? 'danger' : ($trial ? 'warning' : 'success');
     $icon = ! $usable ? 'triangle-exclamation' : ($trial ? 'hourglass-half' : 'circle-check');
     // how much of the free trial is used, for the bar
     $trialDays = max(1, (int) platform('trial_days'));
     $used = $trial && $usable && $left !== null ? min(100, max(4, (int) round(100 * ($trialDays - $left) / $trialDays))) : null;
-    $includes = $plan ? [
-        $plan->max_clients ? __('Up to :count clients', ['count' => number_format($plan->max_clients)]) : __('As many clients and contracts as you need'),
-        $plan->max_users ? trans_choice('{1} 1 user|[2,*] Up to :count users', $plan->max_users, ['count' => $plan->max_users]) : __('As many users as you need'),
+    // what a plan gives, as short lines for its card
+    $features = fn ($p) => [
+        $p->max_clients ? __('Up to :count clients', ['count' => number_format($p->max_clients)]) : __('Clients and contracts without limit'),
+        $p->max_users ? trans_choice('{1} 1 user|[2,*] Up to :count users', $p->max_users, ['count' => $p->max_users]) : __('Users without limit'),
         __('Renewal reminders by email, for you and your clients'),
         __('Loans, income, expenses and reports'),
-    ] : [];
+    ];
 @endphp
 
 @section('content')
@@ -49,10 +52,11 @@
                     <div class="small text-muted">{{ __('Paid until :date', ['date' => fmt_date($tenant->endsOn())]) }}@if ($left !== null && $left <= 30) · {{ trans_choice('{0} ends today|{1} 1 day left|[2,*] :count days left', $left, ['count' => $left]) }}@endif</div>
                 @endif
             </div>
-            @if ($plan && ! $forever)
+            @if ($current)
                 <div class="text-end flex-shrink-0">
-                    <div class="small fw-semibold text-muted text-uppercase">{{ $plan->name }}</div>
-                    <div class="lh-1 mt-1"><span class="fw-bold" style="font-size:30px" dir="ltr">{{ $price }}</span> <span class="text-muted small">/ {{ $per[$plan->interval] ?? $plan->interval }}</span></div>
+                    <div class="small fw-semibold text-muted text-uppercase">{{ __('Your plan') }}</div>
+                    <div class="fw-bold fs-5 lh-sm">{{ $current->name }}</div>
+                    <div class="small text-muted" dir="ltr">{{ $amount($current) }} / {{ $per[$current->interval] ?? $current->interval }}</div>
                 </div>
             @endif
         </div>
@@ -68,7 +72,7 @@
             <div class="empty-state">
                 <div class="es-icon"><x-icon name="hourglass-half" /></div>
                 <h3>{{ __('Your payment is being checked') }}</h3>
-                <p>{{ __('You told us on :date that you paid :amount. As soon as we see the money, your subscription is switched on until :until.', ['date' => fmt_date($pending->created_at), 'amount' => money($pending->amount, $pending->currency), 'until' => $pending->ends_on ? fmt_date($pending->ends_on) : __('no end')]) }}</p>
+                <p>{{ __('You told us on :date that you paid :amount for :plan. As soon as we see the money, your subscription is switched on until :until.', ['date' => fmt_date($pending->created_at), 'plan' => $pending->plan?->name ?: __('your plan'), 'amount' => money($pending->amount, $pending->currency), 'until' => $pending->ends_on ? fmt_date($pending->ends_on) : __('no end')]) }}</p>
             </div>
         </div>
     </div>
@@ -86,7 +90,64 @@
     </div>
 @endif
 
-<div class="row g-3">
+{{-- all plans: the current one is marked, another one can be chosen --}}
+@if ($choosing)
+    <div class="d-flex justify-content-between align-items-baseline mt-4 mb-2">
+        <h5 class="mb-0">{{ $pending ? __('Plans') : ($plans->where('is_active', true)->count() > 1 ? __('Choose your plan') : __('The plan')) }}</h5>
+        @if ($note)<span class="small text-muted">{{ __('Prices') }} {{ __($note) }}</span>@endif
+    </div>
+    <div class="row g-3 mb-3">
+        @foreach ($plans as $option)
+            @php
+                $isCurrent = $current && $current->id === $option->id;
+                $isChosen = ! $pending && $plan && $plan->id === $option->id;
+                $problem = $tooSmall[$option->id] ?? null;
+            @endphp
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="card h-100 mb-0 {{ $isChosen ? 'border-primary' : '' }}" @if ($isChosen) style="border-width:2px" @endif>
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <span class="fw-bold fs-5">{{ $option->name }}</span>
+                            <span class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
+                                @if ($isCurrent)<span class="badge bg-success-subtle text-success-emphasis">{{ __('Your current plan') }}</span>@endif
+                                @if ($isChosen && ! $isCurrent)<span class="badge bg-primary">{{ __('Selected') }}</span>@endif
+                            </span>
+                        </div>
+                        <div class="lh-1 mt-2"><span class="fw-bold" style="font-size:30px" dir="ltr">{{ $amount($option) }}</span> <span class="text-muted small">/ {{ $per[$option->interval] ?? $option->interval }}</span></div>
+                        @if ($isCurrent && $tenant->endsOn())
+                            <div class="small mt-2 {{ $usable ? 'text-muted' : 'text-danger' }}">
+                                {{ ! $usable ? __('Ended on :date', ['date' => fmt_date($tenant->endsOn())]) : ($trial ? __('Free trial until :date', ['date' => fmt_date($tenant->endsOn())]) : __('Paid until :date', ['date' => fmt_date($tenant->endsOn())])) }}
+                            </div>
+                        @endif
+                        @if ($option->description)
+                            <p class="small text-muted mt-2 mb-0">{{ $option->description }}</p>
+                        @endif
+                        <div class="d-flex flex-column gap-1 mt-3 mb-3">
+                            @foreach ($features($option) as $line)
+                                <div class="d-flex align-items-start gap-2 small"><x-icon name="circle-check" class="text-success mt-1" /><span>{{ $line }}</span></div>
+                            @endforeach
+                        </div>
+                        <div class="mt-auto">
+                            @if (! $option->is_active)
+                                <div class="small text-muted text-center">{{ __('This plan is no longer offered. Choose another one to renew.') }}</div>
+                            @elseif ($problem)
+                                <div class="small text-danger text-center">{{ $problem }}</div>
+                            @elseif ($pending)
+                                @if ($pending->plan_id === $option->id)<div class="small text-muted text-center">{{ __('Your payment for this plan is being checked.') }}</div>@endif
+                            @elseif ($isChosen)
+                                <a class="btn btn-primary w-100" href="#pay"><x-icon name="check" class="me-1" /> {{ __('Selected: pay below') }}</a>
+                            @else
+                                <a class="btn btn-outline-primary w-100" href="{{ route('billing.show', ['plan' => $option->id]) }}#pay">{{ $isCurrent ? ($trial || ! $usable ? __('Choose this plan') : __('Renew this plan')) : ($current && ! $trial ? __('Switch to this plan') : __('Choose this plan')) }}</a>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    </div>
+@endif
+
+<div class="row g-3" id="pay">
     @if ($canPay)
         {{-- step 1: pay --}}
         <div class="col-12 col-lg-6">
@@ -140,6 +201,7 @@
                 @if (auth()->user()->isOwner())
                     <form method="POST" action="{{ route('billing.store') }}" class="card mb-0" enctype="multipart/form-data">
                         @csrf
+                        <input type="hidden" name="plan_id" value="{{ $plan->id }}">
                         <div class="card-header">
                             <h5 class="card-title mb-0"><span class="badge bg-primary rounded-pill me-1">2</span> {{ __('Send us the screenshot') }}</h5>
                         </div>
@@ -178,6 +240,10 @@
                             </div>
 
                             <div class="d-flex justify-content-between align-items-baseline gap-3 border-top mt-4 pt-3">
+                                <span class="small text-muted">{{ __('Plan') }}</span>
+                                <span class="fw-semibold text-end">{{ $plan->name }} · <span dir="ltr">{{ $price }}</span></span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-baseline gap-3 mt-2">
                                 <span class="small text-muted">{{ __('Your subscription will run') }}</span>
                                 <span class="fw-semibold text-end">{{ fmt_date($period[0]) }} – {{ $period[1] ? fmt_date($period[1]) : __('no end') }}</span>
                             </div>
@@ -192,27 +258,9 @@
         </div>
     @endif
 
-    {{-- what the plan gives, and what was paid before --}}
-    @if ($plan && ! $forever)
-        <div class="col-12 {{ $history->isNotEmpty() ? 'col-lg-6' : '' }}">
-            <div class="card mb-0">
-                <div class="card-header"><h5 class="card-title mb-0">{{ __('What you get') }}</h5></div>
-                <div class="card-body">
-                    @if ($plan->description)
-                        <p>{{ $plan->description }}</p>
-                    @endif
-                    <div class="row g-2">
-                        @foreach ($includes as $line)
-                            <div class="col-12 {{ $history->isNotEmpty() ? '' : 'col-md-6' }}"><div class="d-flex align-items-start gap-2"><x-icon name="circle-check" class="text-success mt-1" /><span>{{ $line }}</span></div></div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
+    {{-- what was paid before --}}
     @if ($history->isNotEmpty())
-        <div class="col-12 {{ $plan && ! $forever ? 'col-lg-6' : '' }}">
+        <div class="col-12">
             <div class="card mb-0">
                 <div class="card-header"><h5 class="card-title mb-0">{{ __('Your payments') }}</h5></div>
                 <div class="card-body">

@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
             'type' => 'mobile',
             'currency' => 'USD',
             'number' => '+93784006200',
-            'details' => "Pay 199 USD, or the equivalent in AFN, to HesabPay: scan the QR code or send to the number above.\nThen take a screenshot of the payment and add it below.",
+            'details' => "Scan the QR code with HesabPay, or send the amount to the number above.\nThen take a screenshot of the payment and add it below.",
         ]);
         if (! $hesab->qr_path && is_file($qr = database_path('seeders/files/hesabpay-qr.png'))) {
             Storage::disk('local')->put('accounts/hesabpay-qr.png', file_get_contents($qr));
