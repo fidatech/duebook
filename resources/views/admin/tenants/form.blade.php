@@ -124,7 +124,7 @@
 
     @if ($tenant)
         <div class="col-12 col-xl-5">
-            <div class="card mb-3">
+            <div class="card h-auto">
                 <div class="card-header"><h5 class="card-title mb-0">{{ __('Use') }}</h5></div>
                 <div class="card-body">
                     <ul class="list-clean">
@@ -138,7 +138,7 @@
                 </div>
             </div>
 
-            <div class="card mb-3">
+            <div class="card h-auto">
                 <div class="card-header"><h5 class="card-title mb-0">{{ __('Subscriptions') }}</h5></div>
                 <div class="card-body">
                     @if ($subscriptions->isEmpty())
@@ -159,7 +159,7 @@
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('admin.tenants.destroy', ['id' => $tenant->id]) }}" class="card mb-0 border-danger" data-confirm="{{ __('Delete this business and everything it recorded?') }}" data-confirm-ok="{{ __('Delete') }}">
+            <form method="POST" action="{{ route('admin.tenants.destroy', ['id' => $tenant->id]) }}" class="card h-auto border-danger" data-confirm="{{ __('Delete this business and everything it recorded?') }}" data-confirm-ok="{{ __('Delete') }}">
                 @csrf
                 @method('DELETE')
                 <div class="card-body">

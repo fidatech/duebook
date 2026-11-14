@@ -7,7 +7,7 @@
 
 <div class="row g-3">
     <div class="col-12 col-lg-5">
-        <div class="card mb-3">
+        <div class="card h-auto">
             <div class="card-body">
                 <div class="small fw-semibold text-muted mb-2">{{ __('Where you stand') }}</div>
                 <div class="fs-5">{{ \App\Http\Controllers\PersonController::balanceCell($balances) }}</div>
@@ -17,7 +17,7 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('people.entries.store', ['id' => $person->id]) }}" class="card mb-0">
+        <form method="POST" action="{{ route('people.entries.store', ['id' => $person->id]) }}" class="card h-auto">
             @csrf
             <div class="card-header"><h5 class="card-title mb-0">{{ __('New entry') }}</h5></div>
             <div class="card-body">

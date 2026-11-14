@@ -25,7 +25,7 @@
         </div>
     </div>
     <div class="col-12 col-lg-8">
-        <div class="card mb-3">
+        <div class="card h-auto">
             <div class="card-header"><h5 class="card-title mb-0">{{ __('Contracts') }}</h5></div>
             <div class="card-body">
                 @if ($contracts->isEmpty())
@@ -59,7 +59,7 @@
             </div>
         </div>
 
-        <div class="card mb-0">
+        <div class="card h-auto">
             <div class="card-header"><h5 class="card-title mb-0">{{ __('Payments received') }}</h5></div>
             <div class="card-body">
                 @if ($payments->isEmpty())
