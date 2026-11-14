@@ -13,12 +13,14 @@ cd "$(dirname "$0")"
 BRANCH="${1:-main}"
 
 # The PHP that runs the site must be 8.3 or newer. On a cPanel server the plain "php" of the
-# shell is often older, so the newest EasyApache PHP is looked for first. To force one:
+# shell is often older, so the newest EasyApache PHP that has the needed extensions (mbstring,
+# pdo_mysql) is looked for first. To force one:
 #     PHP_BIN=/opt/cpanel/ea-php84/root/usr/bin/php bash deploy.sh
 PHP="${PHP_BIN:-}"
 if [ -z "$PHP" ]; then
     for candidate in /opt/cpanel/ea-php85/root/usr/bin/php /opt/cpanel/ea-php84/root/usr/bin/php /opt/cpanel/ea-php83/root/usr/bin/php; do
-        if [ -x "$candidate" ]; then PHP="$candidate"; break; fi
+        # a version that is installed but lacks the extensions Laravel needs is passed over
+        if [ -x "$candidate" ] && "$candidate" -r 'exit(extension_loaded("mbstring") && extension_loaded("pdo_mysql") ? 0 : 1);' 2>/dev/null; then PHP="$candidate"; break; fi
     done
 fi
 PHP="${PHP:-php}"
