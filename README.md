@@ -56,12 +56,12 @@ composer install
 cp .env.example .env
 php artisan key:generate
 # create the database named in .env (DB_DATABASE), then:
-php artisan migrate --seed          # the seed adds the plan: 200 USD a year
+php artisan migrate --seed          # the seed adds the plan: 199 USD a year
 php artisan app:create-admin        # your sign-in for /admin
 php artisan serve
 ```
 
-- A new business gets 7 free days (`TRIAL_DAYS`), then pays 200 USD a year (change it under `/admin` > Plans).
+- A new business gets 7 free days (`TRIAL_DAYS`), then pays 199 USD a year (change it under `/admin` > Plans).
 - Businesses sign up at `/register` (switch off with `REGISTRATION_OPEN=false`) or are opened by an
   administrator under `/admin` > Businesses.
 - For your own business: open it in `/admin` with status **Active** and **Paid until** empty; it never ends.

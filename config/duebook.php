@@ -8,6 +8,9 @@ return [
     // Empty: every administrator who may sign in.
     'billing_email' => env('BILLING_EMAIL'),
 
+    // shown beside the price on the Subscription page, for people who pay in another currency
+    'pay_note' => env('PAY_NOTE', 'or the equivalent in AFN'),
+
     // days a new business may use the system before it needs a paid plan
     'trial_days' => (int) env('TRIAL_DAYS', 7),
 

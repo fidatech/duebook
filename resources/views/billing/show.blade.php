@@ -5,6 +5,8 @@
     $forever = $tenant->status === 'active' && $tenant->endsOn() === null;
     $per = ['monthly' => __('a month'), 'yearly' => __('a year'), 'lifetime' => __('once')];
     $kinds = \App\Http\Controllers\Admin\AccountController::TYPES;
+    // "199 USD", without useless zeros
+    $price = $plan ? rtrim(rtrim(number_format((float) $plan->price, 2), '0'), '.').' '.$plan->currency : '';
 @endphp
 
 @section('content')
@@ -45,7 +47,7 @@
                 <div class="card-body">
                     <div class="small fw-semibold text-muted text-uppercase">{{ $plan->name }}</div>
                     <div class="d-flex align-items-baseline gap-2 mt-1">
-                        <span class="fw-bold" style="font-size:34px;line-height:1.1" dir="ltr">{{ rtrim(rtrim(number_format((float) $plan->price, 2), '0'), '.') }} {{ $plan->currency }}</span>
+                        <span class="fw-bold" style="font-size:34px;line-height:1.1" dir="ltr">{{ $price }}</span>
                         <span class="text-muted">/ {{ $per[$plan->interval] ?? $plan->interval }}</span>
                     </div>
                     <div class="small text-muted mt-1">{{ trans_choice('{1} The first day is free.|[2,*] The first :count days are free.', config('duebook.trial_days'), ['count' => config('duebook.trial_days')]) }}</div>
@@ -96,7 +98,7 @@
         @elseif ($plan && ! $forever && $tenant->status !== 'suspended')
             <div class="card mb-3">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">{{ __('1. Pay :amount', ['amount' => money($plan->price, $plan->currency)]) }}</h5>
+                    <h5 class="card-title mb-0">{{ __('1. Pay :amount', ['amount' => $price]) }}@if (config('duebook.pay_note')) <span class="fw-normal text-muted">{{ __(config('duebook.pay_note')) }}</span>@endif</h5>
                 </div>
                 <div class="card-body">
                     @if ($accounts->isEmpty())
