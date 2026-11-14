@@ -110,6 +110,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         crud_routes('plans', Admin\PlanController::class, 'plans');
         crud_routes('subscriptions', Admin\SubscriptionController::class, 'subscriptions');
+        Route::get('subscriptions/{id}/reject', [Admin\SubscriptionController::class, 'reject'])->whereNumber('id')->name('subscriptions.reject');
+        Route::post('subscriptions/{id}/reject', [Admin\SubscriptionController::class, 'storeReject'])->whereNumber('id')->name('subscriptions.reject.store');
         Route::get('subscriptions/{id}/receipt', [Admin\SubscriptionController::class, 'receipt'])->whereNumber('id')->name('subscriptions.receipt');
         crud_routes('accounts', Admin\AccountController::class, 'accounts');
         crud_routes('admins', Admin\AdminController::class, 'admins');

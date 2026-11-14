@@ -11,6 +11,50 @@ return [
     // shown beside the price on the Subscription page, for people who pay in another currency
     'pay_note' => env('PAY_NOTE', 'or the equivalent in AFN'),
 
+    // Why a payment can be rejected. The administrator picks one; the business reads "text" and "advice".
+    'reject_reasons' => [
+        'not_received' => [
+            'label' => 'Money not received',
+            'text' => 'We did not receive this payment in our account.',
+            'advice' => 'Please check in your payment app that the transfer went through, then send the screenshot of the completed payment.',
+        ],
+        'less_amount' => [
+            'label' => 'Amount is less than the price',
+            'text' => 'The amount you paid is less than the price of the plan.',
+            'advice' => 'Please pay the rest, then send the screenshots of both payments or of the full amount.',
+        ],
+        'wrong_screenshot' => [
+            'label' => 'Screenshot is not a payment',
+            'text' => 'The picture you sent is not a screenshot of a payment.',
+            'advice' => 'Please send the screenshot of the payment itself, the one your payment app shows after the money is sent.',
+        ],
+        'unclear' => [
+            'label' => 'Screenshot cannot be read',
+            'text' => 'The screenshot is not clear enough to read the amount, the date or the number.',
+            'advice' => 'Please send a clear, uncropped screenshot that shows the amount, the date and the receiving number.',
+        ],
+        'wrong_account' => [
+            'label' => 'Paid to another number',
+            'text' => 'The payment was sent to a different account or number, not to ours.',
+            'advice' => 'Please pay to the number or QR code shown on the Subscription page, then send that screenshot.',
+        ],
+        'already_used' => [
+            'label' => 'Screenshot already used',
+            'text' => 'This screenshot was already used for another payment.',
+            'advice' => 'Each payment needs its own screenshot. Please send the screenshot of the new payment.',
+        ],
+        'old_payment' => [
+            'label' => 'Old payment',
+            'text' => 'The payment in the screenshot is an old one and does not belong to this subscription.',
+            'advice' => 'Please send the screenshot of the payment you made for this subscription.',
+        ],
+        'failed' => [
+            'label' => 'Payment failed or was returned',
+            'text' => 'The payment in the screenshot failed or was returned to you.',
+            'advice' => 'Please pay again and send the screenshot of the completed payment.',
+        ],
+    ],
+
     // days a new business may use the system before it needs a paid plan
     'trial_days' => (int) env('TRIAL_DAYS', 7),
 

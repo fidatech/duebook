@@ -25,7 +25,7 @@ class DashboardController extends Controller
                 ->where(fn ($a) => $a->where('status', Tenant::ACTIVE)->where('subscription_ends_at', '<', $today))
                 ->orWhere(fn ($t) => $t->where('status', Tenant::TRIAL)->where('trial_ends_at', '<', $today)))->orderByDesc('updated_at')->limit(20)->get(),
             'revenue' => Subscription::whereNotNull('paid_on')->where('paid_on', '>=', $yearStart)->selectRaw('currency, sum(amount) as total')->groupBy('currency')->pluck('total', 'currency')->all(),
-            'waiting' => Subscription::where('requested', true)->whereNull('paid_on')->count(),
+            'waiting' => Subscription::waiting()->count(),
             'latest' => Tenant::with('plan')->orderByDesc('id')->limit(8)->get(),
         ]);
     }

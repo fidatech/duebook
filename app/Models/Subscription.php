@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\Day;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -17,7 +18,7 @@ class Subscription extends Model
 
     protected function casts(): array
     {
-        return ['starts_on' => Day::class, 'ends_on' => Day::class, 'paid_on' => Day::class, 'sent_on' => Day::class, 'requested' => 'boolean'];
+        return ['starts_on' => Day::class, 'ends_on' => Day::class, 'paid_on' => Day::class, 'sent_on' => Day::class, 'requested' => 'boolean', 'rejected_at' => 'datetime'];
     }
 
     public function tenant(): BelongsTo
@@ -38,6 +39,40 @@ class Subscription extends Model
     public function isPaid(): bool
     {
         return $this->paid_on !== null;
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->rejected_at !== null && ! $this->isPaid();
+    }
+
+    /** Sent by the business and neither confirmed nor rejected yet. */
+    public function isWaiting(): bool
+    {
+        return $this->requested && ! $this->isPaid() && $this->rejected_at === null;
+    }
+
+    public function scopeWaiting(Builder $query): Builder
+    {
+        return $query->where('requested', true)->whereNull('paid_on')->whereNull('rejected_at');
+    }
+
+    /** The reason of the rejection as the business reads it. */
+    public function rejectText(): string
+    {
+        return __(config('duebook.reject_reasons')[$this->reject_reason]['text'] ?? 'The payment could not be accepted.');
+    }
+
+    /** What the business should do after this rejection. */
+    public function rejectAdvice(): string
+    {
+        return __(config('duebook.reject_reasons')[$this->reject_reason]['advice'] ?? 'Please pay and send the screenshot again.');
+    }
+
+    /** The short name of the reason, for the lists of the administrators. */
+    public function rejectLabel(): string
+    {
+        return __(config('duebook.reject_reasons')[$this->reject_reason]['label'] ?? 'Rejected');
     }
 
     /** The business follows its latest confirmed subscription: plan, active status and end date. */

@@ -94,4 +94,37 @@ class BillingTest extends TestCase
 
         $this->assertSame('trial', $tenant->fresh()->status);
     }
+
+    public function test_a_rejected_payment_tells_the_business_why_and_lets_it_send_again(): void
+    {
+        Mail::fake();
+        Storage::fake('local');
+        Plan::create(['name' => 'DueBook Yearly', 'price' => 199, 'currency' => 'USD', 'interval' => 'yearly']);
+        $tenant = $this->business();
+        $owner = $this->signIn($tenant);
+        $shot = fn () => UploadedFile::fake()->create('payment.png', 120, 'image/png');
+
+        $this->post('/subscription', ['sent_on' => '2026-11-14', 'receipt' => $shot()])->assertRedirect('/subscription');
+        $request = Subscription::firstOrFail();
+
+        $this->systemAdmin();
+        $this->get('/admin/subscriptions?paid=no')->assertOk()->assertSee('Reject');
+        $this->get('/admin/subscriptions/'.$request->id.'/reject')->assertOk()->assertSee('Amount is less than the price');
+        // a reason must be picked from the list
+        $this->post('/admin/subscriptions/'.$request->id.'/reject', ['reject_reason' => 'because'])->assertSessionHasErrors('reject_reason');
+        $this->post('/admin/subscriptions/'.$request->id.'/reject', ['reject_reason' => 'less_amount'])->assertRedirect();
+
+        $this->assertTrue($request->fresh()->isRejected());
+        $this->assertSame('trial', $tenant->fresh()->status);
+        Mail::assertSent(\App\Mail\PaymentRejected::class, fn ($mail) => $mail->hasTo('owner@acme.test'));
+        $this->get('/admin')->assertOk()->assertDontSee('says it has paid');
+        $this->get('/admin/subscriptions?paid=rejected')->assertOk()->assertSee('Amount is less than the price');
+
+        // the business sees the reason and can send a new screenshot
+        $this->actingAs($owner, 'web');
+        $this->get('/subscription')->assertOk()->assertSee('Your payment was not accepted')->assertSee('less than the price of the plan')->assertSee('I have paid');
+        $this->post('/subscription', ['sent_on' => '2026-11-14', 'receipt' => $shot()])->assertRedirect('/subscription');
+        $this->assertSame(2, Subscription::count());
+        $this->get('/subscription')->assertOk()->assertSee('Your payment is being checked')->assertDontSee('Each payment needs its own screenshot')->assertDontSee('Please pay the rest');
+    }
 }

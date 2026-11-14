@@ -37,7 +37,9 @@ class BillingController extends Controller
             'left' => $tenant->daysLeft(),
             'period' => $plan ? $this->period($tenant, $plan) : null,
             'accounts' => PlatformAccount::where('is_active', true)->orderBy('name')->get(),
-            'pending' => $tenant->subscriptions()->where('requested', true)->whereNull('paid_on')->orderByDesc('id')->first(),
+            'pending' => $pending = $tenant->subscriptions()->waiting()->orderByDesc('id')->first(),
+            // the last request, when it was rejected: shown with its reason above the form
+            'rejected' => $pending ? null : $this->lastRejected($tenant),
             'history' => $tenant->subscriptions()->with('plan')->whereNotNull('paid_on')->orderByDesc('starts_on')->limit(10)->get(),
         ]);
     }
@@ -49,7 +51,7 @@ class BillingController extends Controller
         if (! $plan) {
             throw new UserError(__('There is no plan to subscribe to yet. Please contact support.'));
         }
-        if ($tenant->subscriptions()->where('requested', true)->whereNull('paid_on')->exists()) {
+        if ($tenant->subscriptions()->waiting()->exists()) {
             throw new UserError(__('Your payment is already waiting to be confirmed.'));
         }
 
@@ -79,6 +81,17 @@ class BillingController extends Controller
         $this->tellAdministrators($subscription);
 
         return redirect()->route('billing.show')->with('success', __('Thank you. We will check your payment and switch your subscription on.'));
+    }
+
+    /** The newest "I have paid" request of the business, if it was rejected and nothing was paid after it. */
+    private function lastRejected(Tenant $tenant): ?Subscription
+    {
+        $last = $tenant->subscriptions()->where('requested', true)->orderByDesc('id')->first();
+        if (! $last?->isRejected()) {
+            return null;
+        }
+
+        return $tenant->subscriptions()->whereNotNull('paid_on')->where('id', '>', $last->id)->exists() ? null : $last;
     }
 
     /** The QR code of a payment account, for the Subscription page. */

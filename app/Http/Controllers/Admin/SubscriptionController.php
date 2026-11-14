@@ -7,9 +7,18 @@ use App\Models\Plan;
 use App\Models\PlatformAccount;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\User;
+use App\Models\Notice;
+use App\Mail\PaymentRejected;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\HtmlString;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Throwable;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -43,7 +52,8 @@ class SubscriptionController extends CrudController
     {
         return Subscription::query()
             ->when($request->query('tenant'), fn (Builder $q, $id) => $q->where('tenant_id', $id))
-            ->when($request->query('paid') === 'no', fn (Builder $q) => $q->whereNull('paid_on'))
+            ->when($request->query('paid') === 'no', fn (Builder $q) => $q->whereNull('paid_on')->whereNull('rejected_at'))
+            ->when($request->query('paid') === 'rejected', fn (Builder $q) => $q->whereNull('paid_on')->whereNotNull('rejected_at'))
             ->when($request->query('paid') === 'yes', fn (Builder $q) => $q->whereNotNull('paid_on'));
     }
 
@@ -51,7 +61,7 @@ class SubscriptionController extends CrudController
     {
         return [
             ['name' => 'tenant', 'label' => __('Business'), 'options' => Tenant::orderBy('name')->pluck('name', 'id')->all(), 'value' => $request->query('tenant')],
-            ['name' => 'paid', 'label' => __('Paid or not'), 'options' => ['yes' => __('Paid'), 'no' => __('Not paid yet')], 'value' => $request->query('paid')],
+            ['name' => 'paid', 'label' => __('Paid or not'), 'options' => ['no' => __('Waiting'), 'yes' => __('Paid'), 'rejected' => __('Rejected')], 'value' => $request->query('paid')],
         ];
     }
 
@@ -89,7 +99,12 @@ class SubscriptionController extends CrudController
             'Plan' => fn (Subscription $s) => $s->plan?->name,
             'Period' => fn (Subscription $s) => fmt_date($s->starts_on).' – '.($s->ends_on ? fmt_date($s->ends_on) : __('no end')),
             'Amount' => fn (Subscription $s) => money($s->amount, $s->currency),
-            'Paid on' => fn (Subscription $s) => $s->paid_on ? fmt_date($s->paid_on) : ($s->requested ? __('Waiting for you to confirm') : __('Not paid yet')),
+            'Paid on' => fn (Subscription $s) => match (true) {
+                $s->isPaid() => fmt_date($s->paid_on),
+                $s->isRejected() => new HtmlString('<span class="badge bg-danger-subtle text-danger-emphasis">'.e(__('Rejected')).'</span> <span class="small text-muted">'.e($s->rejectLabel()).'</span>'),
+                $s->requested => new HtmlString('<span class="badge bg-warning-subtle text-warning-emphasis">'.e(__('Waiting for you')).'</span>'),
+                default => __('Not paid yet'),
+            },
             'Received in' => fn (Subscription $s) => $s->account?->name,
         ];
     }
@@ -104,6 +119,10 @@ class SubscriptionController extends CrudController
     /** Once the money is confirmed (Paid on is filled in), the business follows the subscription. */
     protected function afterSave(Model $record, array $virtual, Request $request, bool $created): void
     {
+        // a payment that is confirmed after all is no longer a rejected one
+        if ($record->isPaid() && $record->rejected_at) {
+            $record->update(['rejected_at' => null, 'reject_reason' => null, 'reject_note' => null]);
+        }
         $record->apply();
     }
 
@@ -113,11 +132,60 @@ class SubscriptionController extends CrudController
         if ($record->receipt_path) {
             $links[] = ['label' => __('Receipt'), 'icon' => 'paperclip', 'url' => route('admin.subscriptions.receipt', ['id' => $record->id]), 'blank' => true];
         }
-        if (! $record->isPaid()) {
+        if (! $record->isPaid() && ! $record->isRejected()) {
             $links[] = ['label' => __('Confirm'), 'icon' => 'check', 'class' => 'btn-soft-success', 'url' => route('admin.subscriptions.edit', ['id' => $record->id, 'confirm' => 1])];
+        }
+        if ($record->isWaiting()) {
+            $links[] = ['label' => __('Reject'), 'icon' => 'ban', 'class' => 'btn-soft-danger', 'url' => route('admin.subscriptions.reject', ['id' => $record->id])];
         }
 
         return $links;
+    }
+
+    /** The form to reject an "I have paid" request: the reason is picked from a list. */
+    public function reject(int $id): View
+    {
+        $subscription = Subscription::with('tenant')->findOrFail($id);
+        abort_unless($subscription->isWaiting(), 404);
+
+        return view('admin.reject', ['subscription' => $subscription, 'reasons' => config('duebook.reject_reasons')]);
+    }
+
+    /** Reject it: the business is told why by email and under its bell, and can send a new screenshot. */
+    public function storeReject(Request $request, int $id): RedirectResponse
+    {
+        $subscription = Subscription::with('tenant')->findOrFail($id);
+        abort_unless($subscription->isWaiting(), 404);
+
+        $data = $request->validate([
+            'reject_reason' => ['required', Rule::in(array_keys(config('duebook.reject_reasons')))],
+            'reject_note' => ['nullable', 'string', 'max:255'],
+        ], ['reject_reason.required' => __('Choose the reason.')]);
+
+        $subscription->update($data + ['rejected_at' => now()]);
+
+        $tenant = $subscription->tenant;
+        $users = User::where('tenant_id', $tenant->id)->where('is_active', true)->get();
+        foreach ($users as $user) {
+            Notice::create([
+                'tenant_id' => $tenant->id,
+                'user_id' => $user->id,
+                'title' => __('Your payment was not accepted'),
+                'body' => $subscription->rejectText(),
+                'url' => route('billing.show'),
+            ]);
+        }
+
+        $to = $users->where('role', User::OWNER)->pluck('email')->merge([$tenant->email])->filter()->unique()->values()->all();
+        if ($to) {
+            try {
+                Mail::to($to)->send(new PaymentRejected($subscription));
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return redirect()->route('admin.subscriptions.index', ['paid' => 'no'])->with('success', __('The payment of :name is rejected and the business is told why.', ['name' => $tenant->name]));
     }
 
     /** The receipt a business uploaded with its "I have paid" request. */

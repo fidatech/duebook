@@ -74,6 +74,18 @@
     </div>
 @endif
 
+@if ($rejected)
+    <div class="alert alert-danger d-flex align-items-start gap-3">
+        <x-icon name="circle-xmark" class="fs-4 mt-1" />
+        <div class="min-w-0">
+            <div class="fw-bold">{{ __('Your payment was not accepted') }}</div>
+            <div>{{ $rejected->rejectText() }}@if ($rejected->reject_note) {{ $rejected->reject_note }}@endif</div>
+            <div class="small mt-1">{{ $rejected->rejectAdvice() }}</div>
+            <div class="small opacity-75 mt-1">{{ __(':amount, sent on :date', ['amount' => money($rejected->amount, $rejected->currency), 'date' => fmt_date($rejected->sent_on ?? $rejected->created_at)]) }}</div>
+        </div>
+    </div>
+@endif
+
 <div class="row g-3">
     @if ($canPay)
         {{-- step 1: pay --}}
