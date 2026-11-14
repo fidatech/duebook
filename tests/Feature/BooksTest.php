@@ -158,6 +158,12 @@ class BooksTest extends TestCase
         $this->put('/settings', ['name' => 'Acme', 'timezone' => 'UTC', 'currency' => 'USD', 'picked' => ['AFN', 'PKR'], 'currencies' => 'omr', 'remind_days' => '30, 7, 1, 0', 'remind_hour' => 8])->assertSessionHasNoErrors();
         $this->assertSame(['USD', 'AFN', 'PKR', 'OMR'], $tenant->fresh()->currencies);
 
+        // reminder days are ticked, with room for others typed by hand
+        $this->get('/settings')->assertOk()->assertSee('Afghan afghani')->assertSee('Pakistani rupee');
+        $this->put('/settings', ['name' => 'Acme', 'timezone' => 'UTC', 'currency' => 'USD', 'picked' => ['AFN', 'PKR', 'OMR'], 'days' => [7, 1, 0], 'remind_days' => '45', 'remind_hour' => 9])->assertSessionHasNoErrors();
+        $this->assertSame([45, 7, 1, 0], $tenant->fresh()->remind_days);
+        $this->put('/settings', ['name' => 'Acme', 'timezone' => 'UTC', 'currency' => 'USD', 'remind_hour' => 9])->assertSessionHasErrors('remind_days');
+
         $this->contract(['title' => 'Dollar hosting', 'amount' => 60, 'currency' => 'USD']);
         $afn = $this->contract(['title' => 'Afghani support', 'amount' => 5000, 'currency' => 'AFN']);
         $this->contract(['title' => 'Rupee website', 'amount' => 30000, 'currency' => 'PKR']);

@@ -15,11 +15,25 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SiteController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route(auth('web')->check() ? 'dashboard' : 'login'));
+/* ------------------------------------------------------------- the public website */
+
+Route::get('/', [SiteController::class, 'home'])->name('site.home');
+Route::get('features', [SiteController::class, 'features'])->name('site.features');
+Route::get('who-it-is-for', [SiteController::class, 'uses'])->name('site.uses');
+Route::get('pricing', [SiteController::class, 'pricing'])->name('site.pricing');
+Route::get('questions', [SiteController::class, 'faq'])->name('site.faq');
+Route::get('contact', [SiteController::class, 'contact'])->name('site.contact');
+Route::post('contact', [SiteController::class, 'send'])->middleware('throttle:5,10')->name('site.contact.send');
+Route::get('privacy', [SiteController::class, 'privacy'])->name('site.privacy');
+Route::get('terms', [SiteController::class, 'terms'])->name('site.terms');
+Route::get('sitemap.xml', [SiteController::class, 'sitemap'])->name('site.sitemap');
+Route::get('robots.txt', [SiteController::class, 'robots'])->name('site.robots');
+Route::get('llms.txt', [SiteController::class, 'llms'])->name('site.llms');
 
 /* ------------------------------------------------------------------ sign in, sign up */
 

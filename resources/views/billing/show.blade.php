@@ -210,7 +210,7 @@
                                     @error('sent_on')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                                 </div>
                                 <div class="col-12 col-sm-6">
-                                    <label class="form-label" for="b-reference">{{ __('Transfer number') }} <span class="text-muted fw-normal">({{ __('if you have it') }})</span></label>
+                                    <label class="form-label" for="b-reference">{{ __('Transfer number or TxID') }} <span class="text-muted fw-normal">({{ __('if you have it') }})</span></label>
                                     <input type="text" class="form-control @error('reference') is-invalid @enderror" id="b-reference" name="reference" value="{{ old('reference') }}" maxlength="255" dir="ltr">
                                     @error('reference')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                                 </div>

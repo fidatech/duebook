@@ -102,6 +102,17 @@ return [
         'AUD' => ['Australian Dollar', 'A$'],
     ],
 
+    // names and signs of the currencies above, for the tiles in Settings
+    'currency_names' => [
+        'USD' => ['US dollar', '$'], 'AFN' => ['Afghan afghani', '؋'], 'PKR' => ['Pakistani rupee', '₨'], 'EUR' => ['Euro', '€'],
+        'GBP' => ['British pound', '£'], 'AED' => ['UAE dirham', 'د.إ'], 'SAR' => ['Saudi riyal', '﷼'], 'INR' => ['Indian rupee', '₹'],
+        'IRR' => ['Iranian rial', '﷼'], 'TRY' => ['Turkish lira', '₺'], 'CNY' => ['Chinese yuan', '¥'], 'CAD' => ['Canadian dollar', '$'],
+        'AUD' => ['Australian dollar', '$'],
+    ],
+
+    // the days before a due date offered as ready choices in Settings (0 = on the day itself)
+    'remind_choices' => [30, 14, 7, 3, 1, 0],
+
     // categories every new business starts with
     'default_categories' => [
         'income' => ['Client renewals', 'Software and systems', 'Websites', 'Hosting and domains', 'Digital products', 'Other income'],

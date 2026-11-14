@@ -37,3 +37,6 @@ avatar-soft-warning avatar-soft-danger avatar-soft-primary
 #s-calendar-day #s-calendar #s-sack-dollar #s-wallet #s-building-columns #s-building #s-circle-check #s-hourglass-half #s-ban
 #s-triangle-exclamation #s-bell #s-arrow-trend-up #s-receipt #s-hand-holding-dollar #s-handshake #s-user-plus #s-file-signature
 #s-arrow-down #s-arrow-up #s-gauge-high #s-layer-group #s-user-shield #s-user #s-circle-xmark #s-credit-card
+
+# DueBook website: the icons of the feature list come from config/site.php
+#s-envelope #s-file-signature #s-hand-holding-dollar #s-handshake #s-arrow-trend-up #s-coins #s-chart-column #s-user-group #s-wallet #s-bell #s-building

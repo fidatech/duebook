@@ -64,6 +64,18 @@ installed app (bottom bar, cards instead of tables, "Add to Home Screen").
 All businesses share one database; every row carries a `tenant_id` and a model with the
 `BelongsToTenant` trait only ever returns the rows of the signed-in user's business.
 
+## The public website
+
+`/` is the website people find: what DueBook is, how it is used, who it is for, pricing, questions,
+contact, privacy and terms. Its words are in `config/site.php`; prices, the trial and the ways to pay
+come from the live plans, settings and financial accounts. For search engines and AI assistants it has
+a title, description and canonical address on every page, Open Graph and Twitter tags, structured data
+(Organization, WebSite, SoftwareApplication with offers, FAQPage, BreadcrumbList), `/sitemap.xml`,
+`/robots.txt` and `/llms.txt`. The application itself stays `noindex`.
+
+Set `APP_URL` to the real address (https://duebookerp.com) on the server: every address the site gives
+to search engines is built from it.
+
 ## Stack
 
 Laravel 13, PHP 8.3 or newer, MySQL 8 (SQLite for tests), Blade with a little JavaScript.

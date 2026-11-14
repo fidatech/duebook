@@ -19,7 +19,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /** Financial accounts of the platform: where the money of subscriptions is received. */
 class AccountController extends CrudController
 {
-    public const TYPES = ['bank' => 'Bank account', 'cash' => 'Cash', 'online' => 'Online payment', 'mobile' => 'Mobile money', 'other' => 'Other'];
+    public const TYPES = ['bank' => 'Bank account', 'cash' => 'Cash', 'online' => 'Online payment', 'mobile' => 'Mobile money', 'crypto' => 'USDT / crypto wallet', 'other' => 'Other'];
 
     protected string $model = PlatformAccount::class;
 
@@ -47,7 +47,7 @@ class AccountController extends CrudController
             ['name' => 'name', 'label' => 'Name', 'rules' => ['required', 'string', 'max:150']],
             ['name' => 'type', 'label' => 'Kind', 'type' => 'select', 'default' => 'bank', 'options' => array_map('__', self::TYPES), 'rules' => ['required', Rule::in(array_keys(self::TYPES))]],
             ['name' => 'currency', 'label' => 'Currency', 'default' => 'USD', 'rules' => ['required', 'alpha', 'size:3'], 'help' => 'Three letters, for example USD'],
-            ['name' => 'number', 'label' => 'Account or wallet number', 'rules' => ['nullable', 'string', 'max:100'], 'help' => 'For example the HesabPay number. Businesses see it and can copy it.'],
+            ['name' => 'number', 'label' => 'Account or wallet number', 'rules' => ['nullable', 'string', 'max:100'], 'help' => 'For example the HesabPay number, a Binance Pay ID, or a USDT address. Businesses see it and can copy it. For USDT, write the network (TRC20, BEP20 ...) in the details.'],
             ['name' => 'qr', 'label' => 'QR code to scan', 'type' => 'file', 'virtual' => true, 'accept' => 'image/*', 'rules' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
                 'help' => $record?->qr_path ? 'A QR code is already saved. Choose another picture only to replace it.' : 'Optional picture. Businesses scan it on their Subscription page.'],
             ['name' => 'is_active', 'label' => 'In use', 'type' => 'checkbox', 'default' => true, 'help' => 'Accounts in use are shown to businesses as the ways to pay.'],

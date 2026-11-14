@@ -33,9 +33,15 @@ class SettingsController extends Controller
             'picked' => ['nullable', 'array'],
             'picked.*' => ['string', 'alpha', 'size:3'],
             'notify_email' => ['nullable', 'email', 'max:255'],
-            'remind_days' => ['required', 'string', 'max:100', 'regex:/^\s*\d{1,3}(\s*,\s*\d{1,3})*\s*$/'],
+            // the days are ticked on the page (days[]), with room for others typed by hand (remind_days)
+            'days' => ['nullable', 'array'],
+            'days.*' => ['integer', 'between:0,365'],
+            'remind_days' => ['nullable', 'required_without:days', 'string', 'max:100', 'regex:/^\s*\d{1,3}(\s*,\s*\d{1,3})*\s*$/'],
             'remind_hour' => ['required', 'integer', 'between:0,23'],
-        ], ['remind_days.regex' => __('Write the days as numbers with commas between them, for example 30, 7, 1, 0.')]);
+        ], [
+            'remind_days.regex' => __('Write the days as numbers with commas between them, for example 45, 10.'),
+            'remind_days.required_without' => __('Choose at least one day to be reminded on.'),
+        ]);
 
         $data['currency'] = strtoupper($data['currency']);
 
@@ -47,9 +53,11 @@ class SettingsController extends Controller
         $data['currencies'] = array_values(array_unique(array_merge([$data['currency']], $picked, $codes)));
         unset($data['picked']);
 
-        $days = array_map('intval', preg_split('/\s*,\s*/', trim($data['remind_days'])));
+        $typed = trim((string) ($data['remind_days'] ?? ''));
+        $days = array_merge(array_map('intval', $data['days'] ?? []), $typed === '' ? [] : array_map('intval', preg_split('/\s*,\s*/', $typed)));
         rsort($days);
         $data['remind_days'] = array_values(array_unique($days));
+        unset($data['days']);
 
         tenant()->update($data);
 
