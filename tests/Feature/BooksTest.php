@@ -159,7 +159,7 @@ class BooksTest extends TestCase
         $this->assertSame(['USD', 'AFN', 'PKR', 'OMR'], $tenant->fresh()->currencies);
 
         // reminder days are ticked, with room for others typed by hand
-        $this->get('/settings')->assertOk()->assertSee('Afghan afghani')->assertSee('Pakistani rupee');
+        $this->get('/settings')->assertOk()->assertSee('Afghan Afghani')->assertSee('Pakistani Rupee');
         $this->put('/settings', ['name' => 'Acme', 'timezone' => 'UTC', 'currency' => 'USD', 'picked' => ['AFN', 'PKR', 'OMR'], 'days' => [7, 1, 0], 'remind_days' => '45', 'remind_hour' => 9])->assertSessionHasNoErrors();
         $this->assertSame([45, 7, 1, 0], $tenant->fresh()->remind_days);
         $this->put('/settings', ['name' => 'Acme', 'timezone' => 'UTC', 'currency' => 'USD', 'remind_hour' => 9])->assertSessionHasErrors('remind_days');
