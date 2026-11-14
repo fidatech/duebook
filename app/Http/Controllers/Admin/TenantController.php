@@ -27,6 +27,11 @@ class TenantController extends Controller
         $rows = Tenant::with('plan')->withCount('users')
             ->when($term !== '', fn (Builder $q) => $q->where(fn (Builder $inner) => $inner->where('name', 'like', "%$term%")->orWhere('email', 'like', "%$term%")))
             ->when(in_array($status, [Tenant::TRIAL, Tenant::ACTIVE, Tenant::SUSPENDED], true), fn (Builder $q) => $q->where('status', $status))
+            // "ended": suspended, or the trial or the paid time is over
+            ->when($status === 'ended', fn (Builder $q) => $q->where(fn (Builder $e) => $e
+                ->where('status', Tenant::SUSPENDED)
+                ->orWhere(fn (Builder $a) => $a->where('status', Tenant::ACTIVE)->where('subscription_ends_at', '<', now()->toDateString()))
+                ->orWhere(fn (Builder $t) => $t->where('status', Tenant::TRIAL)->where('trial_ends_at', '<', now()->toDateString()))))
             ->orderByDesc('id')->paginate(25)->withQueryString();
 
         return view('admin.tenants.index', ['rows' => $rows, 'term' => $term, 'status' => $status]);

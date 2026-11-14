@@ -7,6 +7,7 @@
         ['Subscriptions', 'receipt', 'admin.subscriptions.index', 'admin.subscriptions.*'],
         ['Financial accounts', 'building-columns', 'admin.accounts.index', 'admin.accounts.*'],
         ['Administrators', 'user-shield', 'admin.admins.index', 'admin.admins.*'],
+        ['My account', 'user', 'admin.profile.edit', 'admin.profile.*'],
     ];
 @endphp
 <!DOCTYPE html>
@@ -55,6 +56,8 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end user-menu">
                         <li class="user-menu-head"><span class="avatar avatar-md avatar-soft-primary">{{ $admin->initials() }}</span><div><strong>{{ $admin->name }}</strong><small>{{ $admin->email }}</small></div></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ route('admin.profile.edit') }}"><x-icon name="user" /> {{ __('My account') }}</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><button class="dropdown-item text-danger" type="submit" form="logoutForm"><x-icon name="right-from-bracket" /> {{ __('app.nav.sign_out') }}</button></li>
                     </ul>

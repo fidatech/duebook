@@ -52,6 +52,8 @@ class SubscriptionController extends CrudController
     {
         return Subscription::query()
             ->when($request->query('tenant'), fn (Builder $q, $id) => $q->where('tenant_id', $id))
+            ->when($request->query('account') === 'none', fn (Builder $q) => $q->whereNotNull('paid_on')->whereNull('platform_account_id'))
+            ->when(is_numeric($request->query('account')), fn (Builder $q) => $q->where('platform_account_id', (int) $request->query('account')))
             ->when($request->query('paid') === 'no', fn (Builder $q) => $q->whereNull('paid_on')->whereNull('rejected_at'))
             ->when($request->query('paid') === 'rejected', fn (Builder $q) => $q->whereNull('paid_on')->whereNotNull('rejected_at'))
             ->when($request->query('paid') === 'yes', fn (Builder $q) => $q->whereNotNull('paid_on'));
@@ -61,6 +63,7 @@ class SubscriptionController extends CrudController
     {
         return [
             ['name' => 'tenant', 'label' => __('Business'), 'options' => Tenant::orderBy('name')->pluck('name', 'id')->all(), 'value' => $request->query('tenant')],
+            ['name' => 'account', 'label' => __('Received in'), 'options' => PlatformAccount::orderBy('name')->pluck('name', 'id')->all() + ['none' => __('Paid, no account chosen')], 'value' => $request->query('account')],
             ['name' => 'paid', 'label' => __('Paid or not'), 'options' => ['no' => __('Waiting'), 'yes' => __('Paid'), 'rejected' => __('Rejected')], 'value' => $request->query('paid')],
         ];
     }
@@ -86,7 +89,8 @@ class SubscriptionController extends CrudController
             // "Confirm" on a request of a business opens this form with today filled in: check it and save
             ['name' => 'paid_on', 'label' => 'Paid on', 'type' => 'date', 'value' => $record && ! $record->paid_on && request()->boolean('confirm') ? ($record->sent_on ?? now()->toDateString()) : $record?->paid_on,
                 'rules' => ['nullable', 'date'], 'help' => 'Leave empty while the money has not come. Filling it in confirms the payment and gives the business access until the end date.'],
-            ['name' => 'platform_account_id', 'label' => 'Received in', 'type' => 'select', 'options' => $accounts, 'rules' => ['nullable', 'exists:platform_accounts,id']],
+            ['name' => 'platform_account_id', 'label' => 'Received in', 'type' => 'select', 'options' => $accounts, 'rules' => ['nullable', 'required_with:paid_on', 'exists:platform_accounts,id'],
+                'help' => 'Needed once the payment is confirmed, so the statement of the account shows where the money came from.'],
             ['name' => 'reference', 'label' => 'Transfer or receipt number', 'rules' => ['nullable', 'string', 'max:255']],
             ['name' => 'note', 'label' => 'Note', 'rules' => ['nullable', 'string', 'max:255'], 'col' => 12],
         ];

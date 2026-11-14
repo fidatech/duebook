@@ -18,7 +18,7 @@
             <div class="col col-md-auto">
                 <select class="form-select" name="status" aria-label="{{ __('Status') }}" onchange="this.form.submit()" data-plain>
                     <option value="">{{ __('Status') }}</option>
-                    @foreach (['trial' => 'Trial', 'active' => 'Active', 'suspended' => 'Suspended'] as $value => $text)
+                    @foreach (['trial' => 'Trial', 'active' => 'Active', 'suspended' => 'Suspended', 'ended' => 'Ended or suspended'] as $value => $text)
                         <option value="{{ $value }}" @selected($status === $value)>{{ __($text) }}</option>
                     @endforeach
                 </select>

@@ -40,7 +40,9 @@ installed app (bottom bar, cards instead of tables, "Add to Home Screen").
 - Payment for now is by **HesabPay**: the seed adds the account with its number and QR code. A business
   scans it, pays, and uploads the screenshot; you get an email with the screenshot attached
   (to `BILLING_EMAIL`, or to every administrator when that is empty).
-- Administrators.
+- Each financial account has a statement: every payment received in it, who paid, when, for what, with
+  the screenshot. A confirmed payment must say which account it came into.
+- Administrators, and each administrator's own account page (name, email, password).
 
 All businesses share one database; every row carries a `tenant_id` and a model with the
 `BelongsToTenant` trait only ever returns the rows of the signed-in user's business.
