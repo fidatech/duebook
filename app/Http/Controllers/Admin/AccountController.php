@@ -7,6 +7,7 @@ use App\Models\PlatformAccount;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 /** Financial accounts of the platform: where the money of subscriptions is received. */
@@ -37,7 +38,10 @@ class AccountController extends CrudController
             ['name' => 'name', 'label' => 'Name', 'rules' => ['required', 'string', 'max:150']],
             ['name' => 'type', 'label' => 'Kind', 'type' => 'select', 'default' => 'bank', 'options' => array_map('__', self::TYPES), 'rules' => ['required', Rule::in(array_keys(self::TYPES))]],
             ['name' => 'currency', 'label' => 'Currency', 'default' => 'USD', 'rules' => ['required', 'alpha', 'size:3'], 'help' => 'Three letters, for example USD'],
-            ['name' => 'is_active', 'label' => 'In use', 'type' => 'checkbox', 'default' => true],
+            ['name' => 'number', 'label' => 'Account or wallet number', 'rules' => ['nullable', 'string', 'max:100'], 'help' => 'For example the HesabPay number. Businesses see it and can copy it.'],
+            ['name' => 'qr', 'label' => 'QR code to scan', 'type' => 'file', 'virtual' => true, 'accept' => 'image/*', 'rules' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+                'help' => $record?->qr_path ? 'A QR code is already saved. Choose another picture only to replace it.' : 'Optional picture. Businesses scan it on their Subscription page.'],
+            ['name' => 'is_active', 'label' => 'In use', 'type' => 'checkbox', 'default' => true, 'help' => 'Accounts in use are shown to businesses as the ways to pay.'],
             ['name' => 'details', 'label' => 'Details', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:2000'], 'col' => 12, 'help' => 'Businesses see this on their Subscription page as the way to pay you: write the bank name, account name and number, or the wallet number.'],
         ];
     }
@@ -47,6 +51,8 @@ class AccountController extends CrudController
         return [
             'Name' => fn (PlatformAccount $a) => $a->name,
             'Kind' => fn (PlatformAccount $a) => __(self::TYPES[$a->type] ?? $a->type),
+            'Account or wallet number' => fn (PlatformAccount $a) => $a->number,
+            'QR code' => fn (PlatformAccount $a) => $a->qr_path ? __('Yes') : __('No'),
             'Received' => fn (PlatformAccount $a) => money($a->received ?? 0, $a->currency),
             'In use' => fn (PlatformAccount $a) => $a->is_active ? __('Yes') : __('No'),
         ];
@@ -57,6 +63,16 @@ class AccountController extends CrudController
         $data['currency'] = strtoupper($data['currency']);
 
         return $data;
+    }
+
+    protected function afterSave(Model $record, array $virtual, Request $request, bool $created): void
+    {
+        if ($file = $request->file('qr')) {
+            if ($record->qr_path) {
+                Storage::disk('local')->delete($record->qr_path);
+            }
+            $record->update(['qr_path' => $file->store('accounts', 'local')]);
+        }
     }
 
     protected function deleteProblem(Model $record): ?string

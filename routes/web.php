@@ -78,6 +78,7 @@ Route::middleware('auth:web')->group(function () {
     // open even when the trial or the subscription has ended: this is where a business pays
     Route::get('subscription', [BillingController::class, 'show'])->name('billing.show');
     Route::post('subscription', [BillingController::class, 'store'])->middleware('owner')->name('billing.store');
+    Route::get('subscription/qr/{id}', [BillingController::class, 'qr'])->whereNumber('id')->name('billing.qr');
 
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');

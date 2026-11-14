@@ -35,6 +35,9 @@ installed app (bottom bar, cards instead of tables, "Add to Home Screen").
   The details of an account in use are shown to businesses as the way to pay.
 - A business that says it has paid appears on the admin dashboard; pressing **Confirm** and saving
   (with "Paid on" filled in) makes it active until the end date. Nothing is charged automatically.
+- Payment for now is by **HesabPay**: the seed adds the account with its number and QR code. A business
+  scans it, pays, and uploads the screenshot; you get an email with the screenshot attached
+  (to `BILLING_EMAIL`, or to every administrator when that is empty).
 - Administrators.
 
 All businesses share one database; every row carries a `tenant_id` and a model with the

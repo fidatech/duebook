@@ -4,6 +4,10 @@ return [
     // may a new business sign up by itself on /register?
     'registration' => (bool) env('REGISTRATION_OPEN', true),
 
+    // who is told by email when a business says it has paid (commas between several).
+    // Empty: every administrator who may sign in.
+    'billing_email' => env('BILLING_EMAIL'),
+
     // days a new business may use the system before it needs a paid plan
     'trial_days' => (int) env('TRIAL_DAYS', 7),
 

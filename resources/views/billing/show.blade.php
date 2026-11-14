@@ -105,11 +105,16 @@
                         <ul class="list-clean">
                             @foreach ($accounts as $account)
                                 <li class="align-items-start">
-                                    <span class="sc-icon icon-soft primary flex-shrink-0" style="width:38px;height:38px"><x-icon name="building-columns" /></span>
+                                    <span class="sc-icon icon-soft primary flex-shrink-0" style="width:38px;height:38px"><x-icon :name="$account->type === 'bank' ? 'building-columns' : 'wallet'" /></span>
                                     <span class="min-w-0 flex-grow-1">
                                         <span class="d-block fw-semibold">{{ $account->name }} <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ $account->currency }}</span></span>
                                         <span class="d-block small text-muted">{{ __($kinds[$account->type] ?? $account->type) }}</span>
+                                        @if ($account->number)<span class="d-block fs-5 fw-bold mt-1 user-select-all" dir="ltr">{{ $account->number }}</span>@endif
                                         @if ($account->details)<span class="d-block small mt-1" style="white-space:pre-line" dir="auto">{{ $account->details }}</span>@endif
+                                        @if ($account->qr_path)
+                                            <a href="{{ route('billing.qr', ['id' => $account->id]) }}" target="_blank" rel="noopener" class="d-inline-block mt-2"><img src="{{ route('billing.qr', ['id' => $account->id]) }}" alt="{{ __('QR code of :name', ['name' => $account->name]) }}" class="border rounded" style="width:230px;max-width:100%;height:auto;background:#fff" loading="lazy"></a>
+                                            <span class="d-block small text-muted">{{ __('Scan it with the app. On this phone: press the picture, save it, and open it from the app.') }}</span>
+                                        @endif
                                     </span>
                                 </li>
                             @endforeach
@@ -122,7 +127,7 @@
                 <form method="POST" action="{{ route('billing.store') }}" class="card mb-0" enctype="multipart/form-data">
                     @csrf
                     <div class="card-header">
-                        <h5 class="card-title mb-0">{{ __('2. Tell us you have paid') }}</h5>
+                        <h5 class="card-title mb-0">{{ __('2. Send us the screenshot') }}</h5>
                         <div class="card-subtitle small text-muted">{{ __('It covers :from to :until.', ['from' => fmt_date($period[0]), 'until' => $period[1] ? fmt_date($period[1]) : __('no end')]) }}</div>
                     </div>
                     <div class="card-body">
@@ -150,8 +155,8 @@
                                 @error('reference')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-12 col-md-6">
-                                <label class="form-label" for="b-receipt">{{ __('Photo of the receipt') }}</label>
-                                <input type="file" class="form-control @error('receipt') is-invalid @enderror" id="b-receipt" name="receipt" accept=".pdf,image/*">
+                                <label class="form-label" for="b-receipt">{{ __('Screenshot of the payment') }} <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control @error('receipt') is-invalid @enderror" id="b-receipt" name="receipt" accept=".pdf,image/*" required>
                                 @error('receipt')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                             </div>
                         </div>

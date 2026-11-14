@@ -18,7 +18,7 @@ class StripNumberCommas
 {
     /** Boxes whose text is kept exactly as typed, even when it looks like a number. */
     private const TEXT_FIELDS = [
-        'name', 'title', 'description', 'notes', 'note', 'address', 'phone', 'company', 'reference', 'details',
+        'name', 'title', 'description', 'notes', 'note', 'address', 'phone', 'company', 'reference', 'details', 'number',
         'email', 'password', 'q', 'currencies', 'remind_days',
     ];
 
