@@ -111,42 +111,56 @@ written to `storage/logs`). Then add the Laravel scheduler to the server's cron:
 The scheduler runs `duebook:remind` every hour; each business gets its email once a day at the hour
 it chose. To try it now: `php artisan duebook:remind --force`.
 
-## Putting it online (Hostinger, getduebook.com)
+## Putting it online (WHM / cPanel, getduebook.com)
 
-Once, on the server (hPanel > Advanced > SSH Access gives the `ssh` command; PHP must be 8.3 or newer
-under hPanel > Advanced > PHP Configuration):
+**Before the first install**
+
+- DNS: at the registrar of the domain, point getduebook.com to the server (its nameservers, or an A record
+  to its IP address).
+- WHM: create the cPanel account for getduebook.com, give it shell access (Manage Shell Access > Normal
+  Shell), and make sure EasyApache has PHP 8.3 or newer with the extensions `mbstring`, `pdo_mysql`,
+  `fileinfo`, `openssl`, `ctype`, `tokenizer`, `xml`, `curl`. Set that PHP for the domain in MultiPHP Manager.
+- cPanel: create a MySQL database and user (all privileges), a mailbox such as `no-reply@getduebook.com`,
+  and run AutoSSL for the domain.
+
+**First install**, signed in over SSH as the cPanel user (replace `ea-php83` with the version you set):
 
 ```
-cd ~/domains/getduebook.com
+cd ~
+alias php=/opt/cpanel/ea-php83/root/usr/bin/php
 git clone -b main https://github.com/fidatech/duebook.git duebook
 cd duebook
-composer2 install --no-dev --optimize-autoloader
+composer install --no-dev --optimize-autoloader     # no Composer on the server? see below
 cp .env.example .env            # then fill it in: see below
 php artisan key:generate
 php artisan migrate --force --seed
 php artisan app:create-admin
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 
-# the web server shows public_html: make it the public folder of the project
-cd ~/domains/getduebook.com
+# the web server shows ~/public_html: make it the public folder of the project
+cd ~
 mv public_html public_html.old
 ln -s duebook/public public_html
 ```
 
+No Composer on the server: `cd ~/duebook && curl -sS https://getcomposer.org/installer | php`, then use
+`php composer.phar` in place of `composer` (`deploy.sh` finds `composer.phar` by itself).
+
 In `.env` on the server: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://getduebook.com`, the
-`DB_*` lines of the MySQL database made in hPanel, and the `MAIL_*` lines of a mailbox such as
-`no-reply@getduebook.com` (`MAIL_MAILER=smtp`, `MAIL_HOST=smtp.hostinger.com`, `MAIL_PORT=465`,
-`MAIL_SCHEME=smtps`).
+`DB_*` lines of the database (cPanel names look like `USERNAME_duebook`), and the mailbox:
+`MAIL_MAILER=smtp`, `MAIL_HOST=mail.getduebook.com`, `MAIL_PORT=465`, `MAIL_SCHEME=smtps`,
+`MAIL_USERNAME=no-reply@getduebook.com`, `MAIL_PASSWORD=...`, `MAIL_FROM_ADDRESS=no-reply@getduebook.com`.
 
-Cron job (hPanel > Advanced > Cron Jobs), every minute, or at least every hour on minute 0:
+Cron job (cPanel > Cron Jobs), every minute:
 
 ```
-/usr/bin/php /home/USERNAME/domains/getduebook.com/duebook/artisan schedule:run
+/opt/cpanel/ea-php83/root/usr/bin/php /home/USERNAME/duebook/artisan schedule:run >/dev/null 2>&1
 ```
 
-**Updates.** `bash deploy.sh` on the server brings it up to date with the `main` branch. The workflow
-`.github/workflows/deploy.yml` runs it over SSH after every push to `main`, once the five secrets named
-at the top of that file are added to the repository.
+**Updates.** `bash deploy.sh` in `~/duebook` brings the server up to date with the `main` branch: it
+fetches the code, installs packages, runs new migrations and rebuilds the caches, using the newest
+EasyApache PHP it finds. The workflow `.github/workflows/deploy.yml` runs it over SSH after every push to
+`main`, once the five secrets named at the top of that file are added to the repository.
 
 ## Tests
 

@@ -2,12 +2,12 @@
 # It can also be started by hand: GitHub > Actions > Deploy > Run workflow.
 #
 # Secrets to add once (GitHub > the repository > Settings > Secrets and variables > Actions):
-#   SSH_HOST   the IP address from hPanel > Advanced > SSH Access
-#   SSH_PORT   the port from the same page (65002 on Hostinger)
-#   SSH_USER   the username from the same page (u123456789)
+#   SSH_HOST   the IP address or host name of the server
+#   SSH_PORT   the SSH port (22 unless the server uses another one)
+#   SSH_USER   the cPanel username of the account that holds the site
 #   SSH_KEY    the PRIVATE key of a key pair made only for deploying; its public half is
-#              added in hPanel > SSH Access > SSH keys
-#   APP_DIR    the project folder on the server, e.g. domains/getduebook.com/duebook
+#              authorised in cPanel > SSH Access > Manage SSH Keys
+#   APP_DIR    the project folder on the server, e.g. /home/USERNAME/duebook
 name: Deploy
 
 on:

@@ -12,13 +12,29 @@ set -euo pipefail
 cd "$(dirname "$0")"
 BRANCH="${1:-main}"
 
-# Hostinger keeps Composer 2 under the name "composer2"
-if command -v composer2 >/dev/null 2>&1; then COMPOSER=composer2; else COMPOSER=composer; fi
+# The PHP that runs the site must be 8.3 or newer. On a cPanel server the plain "php" of the
+# shell is often older, so the newest EasyApache PHP is looked for first. To force one:
+#     PHP_BIN=/opt/cpanel/ea-php84/root/usr/bin/php bash deploy.sh
+PHP="${PHP_BIN:-}"
+if [ -z "$PHP" ]; then
+    for candidate in /opt/cpanel/ea-php85/root/usr/bin/php /opt/cpanel/ea-php84/root/usr/bin/php /opt/cpanel/ea-php83/root/usr/bin/php; do
+        if [ -x "$candidate" ]; then PHP="$candidate"; break; fi
+    done
+fi
+PHP="${PHP:-php}"
+echo "== PHP: $($PHP -r 'echo PHP_VERSION;') ($PHP)"
+
+# Composer is run with that same PHP. A composer.phar in the project folder is used when the
+# server has no Composer of its own.
+if [ -f composer.phar ]; then COMPOSER="$PHP composer.phar"
+elif command -v composer2 >/dev/null 2>&1; then COMPOSER="$PHP $(command -v composer2)"
+elif command -v composer >/dev/null 2>&1; then COMPOSER="$PHP $(command -v composer)"
+else echo "!! Composer is not installed. See 'Putting it online' in README.md."; exit 1; fi
 
 echo "== Fetching $BRANCH"
 git fetch --prune origin "$BRANCH"
 
-if [ -f vendor/autoload.php ] && [ -f .env ]; then php artisan down --retry=30 || true; fi
+if [ -f vendor/autoload.php ] && [ -f .env ]; then $PHP artisan down --retry=30 || true; fi
 
 git reset --hard "origin/$BRANCH"
 
@@ -31,12 +47,12 @@ if [ ! -f .env ]; then
 fi
 
 echo "== Database"
-php artisan migrate --force
+$PHP artisan migrate --force
 
 echo "== Caches"
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+$PHP artisan config:cache
+$PHP artisan route:cache
+$PHP artisan view:cache
 
-php artisan up
+$PHP artisan up
 echo "== Done: $(git log -1 --format='%h %s')"
