@@ -143,6 +143,20 @@ mv public_html public_html.old
 ln -s duebook/public public_html
 ```
 
+**Or inside `public_html` itself** (no separate folder): clone the project into `~/public_html` and add
+these lines to `~/public_html/.htaccess`, below anything cPanel wrote there. Every request is then sent to
+`public/`, so nothing else in the folder (`.env`, `vendor`, `storage`) can be opened from the web. The file
+is not part of the repository, so cPanel can keep its own lines in it and deploys leave it alone.
+
+```
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{REQUEST_URI} !^/\.well-known/
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+```
+
 No Composer on the server: `cd ~/duebook && curl -sS https://getcomposer.org/installer | $P`, then use
 `$P composer.phar install ...` in place of the Composer line (`deploy.sh` finds `composer.phar` by itself).
 
