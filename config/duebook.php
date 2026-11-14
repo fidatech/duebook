@@ -85,6 +85,23 @@ return [
     // currencies offered in Settings; a business may type any other 3-letter code
     'currencies' => ['USD', 'AFN', 'PKR', 'EUR', 'GBP', 'AED', 'SAR', 'INR', 'IRR', 'TRY', 'CNY', 'CAD', 'AUD'],
 
+    // how each of them is shown where currencies are chosen: code => [name, sign]
+    'currency_names' => [
+        'USD' => ['US Dollar', '$'],
+        'AFN' => ['Afghan Afghani', '؋'],
+        'PKR' => ['Pakistani Rupee', '₨'],
+        'EUR' => ['Euro', '€'],
+        'GBP' => ['British Pound', '£'],
+        'AED' => ['UAE Dirham', 'د.إ'],
+        'SAR' => ['Saudi Riyal', '﷼'],
+        'INR' => ['Indian Rupee', '₹'],
+        'IRR' => ['Iranian Rial', '﷼'],
+        'TRY' => ['Turkish Lira', '₺'],
+        'CNY' => ['Chinese Yuan', '¥'],
+        'CAD' => ['Canadian Dollar', 'C$'],
+        'AUD' => ['Australian Dollar', 'A$'],
+    ],
+
     // categories every new business starts with
     'default_categories' => [
         'income' => ['Client renewals', 'Software and systems', 'Websites', 'Hosting and domains', 'Digital products', 'Other income'],
