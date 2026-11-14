@@ -12,7 +12,6 @@
         <x-icon name="magnifying-glass" /><span>{{ __('app.nav.search_placeholder') }}</span><span class="kbd-group"><kbd>Ctrl</kbd><kbd>K</kbd></span>
     </button>
 
-    <div class="topbar-brand" aria-hidden="true">{{ tenant()?->name ?: config('app.name') }}</div>
 
     <div class="topbar-right">
         <div class="dropdown">
