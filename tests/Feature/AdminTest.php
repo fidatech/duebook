@@ -74,6 +74,12 @@ class AdminTest extends TestCase
         $this->get('/admin/accounts')->assertOk()->assertSee('Statement');
         $this->get('/admin/accounts/'.$account->id)->assertOk()->assertSee('Kabul Traders')->assertSee('TX-9')->assertSee('199.00 USD');
         $this->get('/admin/accounts/'.$account->id.'?from=2027-01-01')->assertOk()->assertSee('Nothing found');
+        $this->get('/admin/accounts/'.$account->id.'?period=last_year')->assertOk()->assertSee('Nothing found');
+        $this->get('/admin/accounts/'.$account->id.'?q=Kabul')->assertOk()->assertSee('TX-9')->assertSee('1 payment');
+        $this->get('/admin/accounts/'.$account->id.'?q=nobody')->assertOk()->assertSee('Nothing found');
+        $csv = $this->get('/admin/accounts/'.$account->id.'?export=csv')->assertOk()->streamedContent();
+        $this->assertStringContainsString('Kabul Traders', $csv);
+        $this->assertStringContainsString('199.00', $csv);
         $this->get('/admin')->assertOk()->assertSee('Latest payments')->assertSee('Kabul Traders');
         $this->get('/admin/tenants?status=ended')->assertOk();
         $this->get('/admin/subscriptions?account='.$account->id)->assertOk()->assertSee('Kabul Traders');

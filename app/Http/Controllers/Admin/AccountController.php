@@ -10,8 +10,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** Financial accounts of the platform: where the money of subscriptions is received. */
 class AccountController extends CrudController
@@ -86,31 +88,105 @@ class AccountController extends CrudController
         return $loose ? [['label' => trans_choice('{1} 1 payment without an account|[2,*] :count payments without an account', $loose, ['count' => $loose]), 'url' => route('admin.subscriptions.index', ['account' => 'none'])]] : [];
     }
 
+    public const PERIODS = ['month' => 'This month', 'last_month' => 'Last month', 'year' => 'This year', 'last_year' => 'Last year', 'all' => 'All time'];
+
     /** The statement of an account: every payment received in it, who paid, when and for what. */
-    public function show(Request $request, int $id): View
+    public function show(Request $request, int $id): View|StreamedResponse
     {
         $account = PlatformAccount::findOrFail($id);
+
+        // the period: one of the quick choices, or two dates typed by hand
+        $period = $request->query('period');
         $from = $request->query('from');
         $to = $request->query('to');
+        if ($from || $to) {
+            $period = 'custom';
+        } else {
+            $period = isset(self::PERIODS[$period]) ? $period : 'all';
+            [$from, $to] = match ($period) {
+                'month' => [now()->startOfMonth()->toDateString(), null],
+                'last_month' => [now()->subMonthNoOverflow()->startOfMonth()->toDateString(), now()->subMonthNoOverflow()->endOfMonth()->toDateString()],
+                'year' => [now()->startOfYear()->toDateString(), null],
+                'last_year' => [now()->subYear()->startOfYear()->toDateString(), now()->subYear()->endOfYear()->toDateString()],
+                default => [null, null],
+            };
+        }
+        $term = trim((string) $request->query('q', ''));
 
         $paid = fn () => Subscription::where('platform_account_id', $account->id)->whereNotNull('paid_on');
         $sum = fn ($query) => $query->selectRaw('currency, sum(amount) as total')->groupBy('currency')->orderBy('currency')->pluck('total', 'currency')->all();
         $filtered = fn () => $paid()
             ->when($from, fn (Builder $q) => $q->where('paid_on', '>=', $from))
-            ->when($to, fn (Builder $q) => $q->where('paid_on', '<=', $to));
+            ->when($to, fn (Builder $q) => $q->where('paid_on', '<=', $to))
+            ->when($term !== '', fn (Builder $q) => $q->where(fn (Builder $inner) => $inner
+                ->where('reference', 'like', "%$term%")
+                ->orWhereHas('tenant', fn (Builder $tenant) => $tenant->where('name', 'like', "%$term%")->orWhere('email', 'like', "%$term%"))));
+
+        if ($request->query('export') === 'csv') {
+            return $this->export($account, $filtered()->with('tenant', 'plan')->orderBy('paid_on')->orderBy('id')->get());
+        }
+
+        // the last twelve months in the currency of the account, oldest first, for the bars
+        $chart = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $chart[now()->startOfMonth()->subMonths($i)->format('Y-m')] = 0.0;
+        }
+        $since = now()->startOfMonth()->subMonths(11)->toDateString();
+        foreach ($paid()->where('paid_on', '>=', $since)->where('currency', $account->currency)->get(['paid_on', 'amount']) as $row) {
+            $key = $row->paid_on->format('Y-m');
+            if (isset($chart[$key])) {
+                $chart[$key] += (float) $row->amount;
+            }
+        }
 
         return view('admin.account', [
             'account' => $account,
+            'periods' => self::PERIODS,
+            'period' => $period,
             'from' => $from,
             'to' => $to,
+            'term' => $term,
             'month' => $sum($paid()->where('paid_on', '>=', now()->startOfMonth()->toDateString())),
             'year' => $sum($paid()->where('paid_on', '>=', now()->startOfYear()->toDateString())),
             'all' => $sum($paid()),
+            'count' => $paid()->count(),
+            'last' => $paid()->with('tenant')->orderByDesc('paid_on')->orderByDesc('id')->first(),
+            'chart' => $chart,
             'filtered' => $sum($filtered()),
+            'filteredCount' => $filtered()->count(),
             'rows' => $filtered()->with('tenant', 'plan')->orderByDesc('paid_on')->orderByDesc('id')->paginate(30)->withQueryString(),
             'payers' => $paid()->with('tenant')->selectRaw('tenant_id, currency, sum(amount) as total, count(*) as payments')
-                ->groupBy('tenant_id', 'currency')->orderByDesc('total')->limit(8)->get(),
+                ->groupBy('tenant_id', 'currency')->orderByDesc('total')->limit(6)->get(),
         ]);
+    }
+
+    /** The payments on the screen as a file for Excel. */
+    private function export(PlatformAccount $account, $rows): StreamedResponse
+    {
+        $name = Str::slug($account->name).'-statement-'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($rows, $account) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // so Excel reads names in any language
+            fputcsv($out, ['Paid on', 'Business', 'Email', 'Plan', 'From', 'Until', 'Transfer number', 'Amount', 'Currency', 'Account']);
+            foreach ($rows as $row) {
+                fputcsv($out, [
+                    $row->paid_on?->toDateString(), $row->tenant?->name, $row->tenant?->email, $row->plan?->name,
+                    $row->starts_on?->toDateString(), $row->ends_on?->toDateString(), $row->reference,
+                    number_format((float) $row->amount, 2, '.', ''), $row->currency, $account->name,
+                ]);
+            }
+            fclose($out);
+        }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** The QR code of the account, as the businesses see it. */
+    public function qr(int $id): StreamedResponse
+    {
+        $account = PlatformAccount::findOrFail($id);
+        abort_unless($account->qr_path && Storage::disk('local')->exists($account->qr_path), 404);
+
+        return Storage::disk('local')->response($account->qr_path);
     }
 
     protected function afterSave(Model $record, array $virtual, Request $request, bool $created): void

@@ -115,6 +115,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('subscriptions/{id}/receipt', [Admin\SubscriptionController::class, 'receipt'])->whereNumber('id')->name('subscriptions.receipt');
         crud_routes('accounts', Admin\AccountController::class, 'accounts');
         Route::get('accounts/{id}', [Admin\AccountController::class, 'show'])->whereNumber('id')->name('accounts.show');
+        Route::get('accounts/{id}/qr', [Admin\AccountController::class, 'qr'])->whereNumber('id')->name('accounts.qr');
         Route::get('profile', [Admin\ProfileController::class, 'edit'])->name('profile.edit');
         Route::put('profile', [Admin\ProfileController::class, 'update'])->name('profile.update');
         crud_routes('admins', Admin\AdminController::class, 'admins');
