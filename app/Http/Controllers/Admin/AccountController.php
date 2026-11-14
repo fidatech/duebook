@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\CrudController;
 use App\Models\PlatformAccount;
+use App\Models\PlatformExpense;
 use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -150,6 +151,10 @@ class AccountController extends CrudController
             'year' => $sum($paid()->where('paid_on', '>=', now()->startOfYear()->toDateString())),
             'all' => $sum($paid()),
             'count' => $paid()->count(),
+            // what went out of this account (platform expenses), and what is left of each currency
+            'spent' => $spent = PlatformExpense::where('platform_account_id', $account->id)->selectRaw('currency, sum(amount) as total')->groupBy('currency')->orderBy('currency')->pluck('total', 'currency')->all(),
+            'balance' => $this->balance($sum($paid()), $spent),
+            'expenses' => PlatformExpense::where('platform_account_id', $account->id)->orderByDesc('date')->orderByDesc('id')->limit(6)->get(),
             'last' => $paid()->with('tenant')->orderByDesc('paid_on')->orderByDesc('id')->first(),
             'chart' => $chart,
             'filtered' => $sum($filtered()),
@@ -158,6 +163,17 @@ class AccountController extends CrudController
             'payers' => $paid()->with('tenant')->selectRaw('tenant_id, currency, sum(amount) as total, count(*) as payments')
                 ->groupBy('tenant_id', 'currency')->orderByDesc('total')->limit(6)->get(),
         ]);
+    }
+
+    /** Received minus spent, currency by currency. */
+    private function balance(array $received, array $spent): array
+    {
+        $balance = [];
+        foreach (array_unique(array_merge(array_keys($received), array_keys($spent))) as $currency) {
+            $balance[$currency] = (float) ($received[$currency] ?? 0) - (float) ($spent[$currency] ?? 0);
+        }
+
+        return $balance;
     }
 
     /** The payments on the screen as a file for Excel. */

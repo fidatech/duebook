@@ -162,6 +162,7 @@ abstract class CrudController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $record = $this->save($request, null);
+        $this->audit('added', $record);
 
         return redirect()->to($this->afterStoreUrl($record, $request))->with('success', __(':name saved.', ['name' => __($this->singular)]));
     }
@@ -201,6 +202,7 @@ abstract class CrudController extends Controller
         $record = $this->find($request);
         abort_unless($this->canEdit($record), 403);
         $this->save($request, $record);
+        $this->audit('changed', $record);
 
         return redirect()->route($this->route.'.index', $this->routeParams())->with('success', __(':name saved.', ['name' => __($this->singular)]));
     }
@@ -214,6 +216,7 @@ abstract class CrudController extends Controller
             throw new UserError($problem);
         }
 
+        $this->audit('deleted', $record);
         try {
             DB::transaction(fn () => $record->delete());
         } catch (QueryException) {
@@ -222,6 +225,20 @@ abstract class CrudController extends Controller
         }
 
         return redirect()->route($this->route.'.index', $this->routeParams())->with('success', __(':name deleted.', ['name' => __($this->singular)]));
+    }
+
+    /** The screens of the system administrators write what was done into the activity log. */
+    protected function audit(string $action, Model $record): void
+    {
+        if ($this->layout === 'layouts.admin') {
+            \App\Models\AdminLog::record($action.' '.mb_strtolower($this->singular), $this->auditLabel($record));
+        }
+    }
+
+    /** How a record is named in the activity log. */
+    protected function auditLabel(Model $record): string
+    {
+        return (string) ($record->getAttribute('name') ?? $record->getAttribute('title') ?? '#'.$record->getKey());
     }
 
     protected function find(Request $request): Model

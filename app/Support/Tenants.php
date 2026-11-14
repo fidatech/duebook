@@ -30,7 +30,7 @@ class Tenants
                 'currencies' => [$currency],
                 'plan_id' => $data['plan_id'] ?? Plan::where('is_active', true)->orderBy('sort')->orderBy('id')->value('id'),
                 'status' => $status,
-                'trial_ends_at' => $status === Tenant::TRIAL ? now()->addDays(config('duebook.trial_days'))->toDateString() : null,
+                'trial_ends_at' => $status === Tenant::TRIAL ? now()->addDays((int) platform('trial_days'))->toDateString() : null,
                 'subscription_ends_at' => $data['subscription_ends_at'] ?? null,
                 'remind_days' => config('duebook.remind_days'),
             ]);

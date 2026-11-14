@@ -26,6 +26,14 @@ if (! function_exists('text_dir')) {
     }
 }
 
+if (! function_exists('platform')) {
+    /** A setting of the platform (see App\Support\Platform): the saved value, or the one from config. */
+    function platform(string $key, mixed $default = null): mixed
+    {
+        return \App\Support\Platform::get($key, $default);
+    }
+}
+
 if (! function_exists('tenant')) {
     /** The business of the signed-in user, or null (admin panel, console, guest). */
     function tenant(): ?Tenant

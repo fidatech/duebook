@@ -101,7 +101,7 @@
                         <label class="form-label" for="t-trial">{{ __('Trial ends') }}</label>
                         <x-date name="trial_ends_at" id="t-trial" :value="$value('trial_ends_at')" class="{{ $errors->has('trial_ends_at') ? 'is-invalid' : '' }}" />
                         @error('trial_ends_at')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                        @unless ($tenant)<div class="form-text">{{ __('Empty: :days days from today.', ['days' => config('duebook.trial_days')]) }}</div>@endunless
+                        @unless ($tenant)<div class="form-text">{{ __('Empty: :days days from today.', ['days' => (int) platform('trial_days')]) }}</div>@endunless
                     </div>
                     <div class="col-6">
                         <label class="form-label" for="t-paid">{{ __('Paid until') }}</label>

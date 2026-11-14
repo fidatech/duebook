@@ -9,11 +9,11 @@
     $per = ['monthly' => __('a month'), 'yearly' => __('a year'), 'lifetime' => __('once')];
     // "199 USD", without useless zeros
     $price = $plan ? rtrim(rtrim(number_format((float) $plan->price, 2), '0'), '.').' '.$plan->currency : '';
-    $note = config('duebook.pay_note');
+    $note = platform('pay_note');
     $tone = ! $usable ? 'danger' : ($trial ? 'warning' : 'success');
     $icon = ! $usable ? 'triangle-exclamation' : ($trial ? 'hourglass-half' : 'circle-check');
     // how much of the free trial is used, for the bar
-    $trialDays = max(1, (int) config('duebook.trial_days'));
+    $trialDays = max(1, (int) platform('trial_days'));
     $used = $trial && $usable && $left !== null ? min(100, max(4, (int) round(100 * ($trialDays - $left) / $trialDays))) : null;
     $includes = $plan ? [
         $plan->max_clients ? __('Up to :count clients', ['count' => number_format($plan->max_clients)]) : __('As many clients and contracts as you need'),
@@ -224,7 +224,10 @@
                                     <span class="d-block fw-semibold">{{ $row->plan?->name }}</span>
                                     <span class="d-block small text-muted">{{ fmt_date($row->starts_on) }} – {{ $row->ends_on ? fmt_date($row->ends_on) : __('no end') }}</span>
                                 </span>
-                                <span class="fw-semibold text-nowrap" dir="ltr">{{ money($row->amount, $row->currency) }}</span>
+                                <span class="text-end flex-shrink-0">
+                                    <span class="d-block fw-semibold text-nowrap" dir="ltr">{{ money($row->amount, $row->currency) }}</span>
+                                    @if ($row->receipt_no)<a class="small text-decoration-none" target="_blank" rel="noopener" href="{{ route('billing.receipt', ['id' => $row->id]) }}"><x-icon name="print" class="me-1" />{{ $row->receiptNumber() }}</a>@endif
+                                </span>
                             </li>
                         @endforeach
                     </ul>

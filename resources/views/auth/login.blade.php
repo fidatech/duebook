@@ -31,7 +31,7 @@
         </div>
         <button type="submit" class="btn btn-gradient btn-lg w-100">{{ __('app.auth.submit') }} <x-icon name="arrow-right" class="ms-1" /></button>
     </form>
-    @if (config('duebook.registration'))
+    @if (\App\Support\Platform::bool('registration'))
         <p class="text-center small text-muted mt-4 mb-0">{{ __('New here?') }} <a class="text-decoration-none fw-semibold" href="{{ route('register') }}">{{ __('Create an account') }}</a></p>
     @endif
 </div>

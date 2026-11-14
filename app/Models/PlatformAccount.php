@@ -19,4 +19,9 @@ class PlatformAccount extends Model
     {
         return $this->hasMany(Subscription::class);
     }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(PlatformExpense::class);
+    }
 }

@@ -94,6 +94,14 @@ class BillingController extends Controller
         return $tenant->subscriptions()->whereNotNull('paid_on')->where('id', '>', $last->id)->exists() ? null : $last;
     }
 
+    /** The numbered receipt of one of the business's own confirmed payments. */
+    public function receipt(int $id): View
+    {
+        $subscription = tenant()->subscriptions()->with('tenant', 'plan', 'account')->whereNotNull('receipt_no')->findOrFail($id);
+
+        return view('receipts.show', ['subscription' => $subscription]);
+    }
+
     /** The QR code of a payment account, for the Subscription page. */
     public function qr(int $id): StreamedResponse
     {
@@ -106,7 +114,7 @@ class BillingController extends Controller
     /** An email to the platform owner, with the screenshot. A mail problem never loses the request itself. */
     private function tellAdministrators(Subscription $subscription): void
     {
-        $to = array_values(array_filter(array_map('trim', explode(',', (string) config('duebook.billing_email')))))
+        $to = array_values(array_filter(array_map('trim', explode(',', (string) platform('billing_email')))))
             ?: Admin::where('is_active', true)->pluck('email')->all();
         if (! $to) {
             return;

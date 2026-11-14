@@ -73,8 +73,9 @@
     <div class="col-6 col-xl-3">
         <div class="card h-100 mb-0">
             <div class="card-body">
-                <div class="d-flex align-items-center gap-2 mb-2"><span class="sc-icon icon-soft warning flex-shrink-0" style="width:36px;height:36px"><x-icon name="receipt" /></span><span class="small fw-semibold text-muted">{{ __('Payments') }}</span></div>
-                <div class="fs-5 fw-bold">{{ number_format($count) }}</div>
+                <div class="d-flex align-items-center gap-2 mb-2"><span class="sc-icon icon-soft warning flex-shrink-0" style="width:36px;height:36px"><x-icon name="scale-balanced" /></span><span class="small fw-semibold text-muted">{{ __('Balance') }}</span></div>
+                <div class="fs-5 fw-bold" dir="ltr">{{ $balance ? collect($balance)->map(fn ($amount, $currency) => money($amount, $currency))->implode(' · ') : '0' }}</div>
+                <div class="small text-muted mt-1">{{ trans_choice('{0} no payments|{1} 1 payment|[2,*] :count payments', $count, ['count' => $count]) }} · {{ __('spent') }} <span dir="ltr">{{ sums($spent) }}</span></div>
             </div>
         </div>
     </div>
@@ -199,6 +200,27 @@
                                         <span class="d-block small text-muted">{{ trans_choice('{1} 1 payment|[2,*] :count payments', $payer->payments, ['count' => $payer->payments]) }}</span>
                                     </a>
                                     <span class="fw-semibold text-nowrap" dir="ltr">{{ money($payer->total, $payer->currency) }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+            </div>
+
+            <div class="card mb-0">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">{{ __('Paid out of this account') }}</h5>
+                    <a class="small text-decoration-none" href="{{ route('admin.expenses.index', ['account' => $account->id]) }}">{{ __('See all') }}</a>
+                </div>
+                <div class="card-body">
+                    @if ($expenses->isEmpty())
+                        <p class="text-muted mb-0">{{ __('No expense was paid from this account.') }}</p>
+                    @else
+                        <ul class="list-clean">
+                            @foreach ($expenses as $expense)
+                                <li>
+                                    <span class="min-w-0 flex-grow-1"><span class="d-block fw-semibold text-truncate">{{ $expense->description ?: $expense->categoryLabel() }}</span><span class="d-block small text-muted">{{ fmt_date($expense->date) }} · {{ $expense->categoryLabel() }}</span></span>
+                                    <span class="fw-semibold text-nowrap bal-owe" dir="ltr">−{{ money($expense->amount, $expense->currency) }}</span>
                                 </li>
                             @endforeach
                         </ul>

@@ -45,6 +45,7 @@ class LoginController extends Controller
 
         RateLimiter::clear($key);
         $request->session()->regenerate();
+        \App\Models\AdminLog::record('signed in');
 
         return redirect()->intended(route('admin.dashboard'));
     }

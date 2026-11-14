@@ -42,7 +42,17 @@ installed app (bottom bar, cards instead of tables, "Add to Home Screen").
   (to `BILLING_EMAIL`, or to every administrator when that is empty).
 - Each financial account has a statement: every payment received in it, who paid, when, for what, with
   the screenshot. A confirmed payment must say which account it came into.
-- Administrators, and each administrator's own account page (name, email, password).
+- **Expenses** of the platform itself and a **profit report** (received, spent, profit by month; by plan and
+  by category; how many trials became paying). An account statement shows its balance too.
+- **Receipts**: every confirmed payment gets a number (DB-00001 ...) and a print-ready receipt page for
+  the business and for you ("Print or save as PDF" in the browser).
+- **Emails to businesses**, sent by themselves: trial ending, trial ended, subscription ending,
+  subscription ended, payment confirmed (`duebook:lifecycle`, every hour by the scheduler).
+- **Settings** page: trial days, sign-up on or off, words beside the price, who is told about payments,
+  receipt prefix and company name, support contact, warning days. Saved values win over `.env`.
+- **Activity log**: sign-ins, businesses opened, changed, suspended or deleted, payments confirmed or
+  rejected, and every record added, changed or deleted in the admin panel.
+- Administrators with **roles** (super, manager, viewer), and each one's own account page.
 
 All businesses share one database; every row carries a `tenant_id` and a model with the
 `BelongsToTenant` trait only ever returns the rows of the signed-in user's business.

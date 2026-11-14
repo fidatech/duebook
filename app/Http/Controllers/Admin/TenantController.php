@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminLog;
 use App\Models\Client;
 use App\Models\Contract;
 use App\Models\Plan;
@@ -54,6 +55,8 @@ class TenantController extends Controller
         $tenant = Tenants::create($data);
         $tenant->update(array_filter(['notes' => $data['notes'] ?? null, 'trial_ends_at' => $data['status'] === Tenant::TRIAL ? ($data['trial_ends_at'] ?? null) : null]));
 
+        AdminLog::record('opened business', $tenant->name, 'Owner: '.$data['owner_email']);
+
         return redirect()->route('admin.tenants.edit', ['id' => $tenant->id])->with('success', __('The business is opened. Its owner can sign in now.'));
     }
 
@@ -84,7 +87,23 @@ class TenantController extends Controller
         if ($data['status'] !== Tenant::TRIAL) {
             $data['trial_ends_at'] = $tenant->trial_ends_at;
         }
+        $before = $tenant->only('status', 'plan_id', 'trial_ends_at', 'subscription_ends_at');
         $tenant->update($data);
+
+        // the log says what changed about the access of the business, in words
+        $changes = [];
+        if ($before['status'] !== $tenant->status) {
+            $changes[] = 'status: '.$before['status'].' → '.$tenant->status;
+        }
+        foreach (['trial_ends_at' => 'trial ends', 'subscription_ends_at' => 'paid until'] as $key => $label) {
+            if ($before[$key]?->toDateString() !== $tenant->{$key}?->toDateString()) {
+                $changes[] = $label.': '.($before[$key]?->toDateString() ?? 'none').' → '.($tenant->{$key}?->toDateString() ?? 'none');
+            }
+        }
+        if ((int) $before['plan_id'] !== (int) $tenant->plan_id) {
+            $changes[] = 'plan changed';
+        }
+        AdminLog::record($before['status'] !== $tenant->status && $tenant->status === Tenant::SUSPENDED ? 'suspended business' : 'changed business', $tenant->name, implode('; ', $changes) ?: null);
 
         return back()->with('success', __('The business is saved.'));
     }
@@ -94,6 +113,7 @@ class TenantController extends Controller
         $tenant = Tenant::findOrFail($id);
         // typing the name protects against a wrong click: everything of the business goes with it
         $request->validate(['confirm' => ['required', Rule::in([$tenant->name])]], ['confirm.in' => __('Type the name of the business exactly to delete it.')]);
+        AdminLog::record('deleted business', $tenant->name, 'Email: '.$tenant->email);
         $tenant->delete();
 
         return redirect()->route('admin.tenants.index')->with('success', __('The business and everything it recorded is deleted.'));

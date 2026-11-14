@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\UserError;
+use App\Http\Middleware\AdminRole;
 use App\Http\Middleware\EnsureOwner;
 use App\Http\Middleware\EnsureTenantActive;
 use App\Http\Middleware\EnsureUserIsActive;
@@ -22,7 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(fn (Request $request) => $request->is('admin', 'admin/*') ? route('admin.dashboard') : route('dashboard'));
 
         $middleware->web(append: [StripNumberCommas::class, EnsureUserIsActive::class]);
-        $middleware->alias(['tenant.active' => EnsureTenantActive::class, 'owner' => EnsureOwner::class]);
+        $middleware->alias(['tenant.active' => EnsureTenantActive::class, 'owner' => EnsureOwner::class, 'admin.role' => AdminRole::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // A problem the user can fix: go back to the form and show the message.

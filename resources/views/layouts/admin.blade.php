@@ -1,13 +1,18 @@
 @php
     $admin = auth('admin')->user();
+    // [label, icon, route, pattern that marks it current, only for super administrators]
     $menu = [
-        ['Dashboard', 'gauge-high', 'admin.dashboard', 'admin.dashboard'],
-        ['Businesses', 'building', 'admin.tenants.index', 'admin.tenants.*'],
-        ['Plans', 'layer-group', 'admin.plans.index', 'admin.plans.*'],
-        ['Subscriptions', 'receipt', 'admin.subscriptions.index', 'admin.subscriptions.*'],
-        ['Financial accounts', 'building-columns', 'admin.accounts.index', 'admin.accounts.*'],
-        ['Administrators', 'user-shield', 'admin.admins.index', 'admin.admins.*'],
-        ['My account', 'user', 'admin.profile.edit', 'admin.profile.*'],
+        ['Dashboard', 'gauge-high', 'admin.dashboard', 'admin.dashboard', false],
+        ['Businesses', 'building', 'admin.tenants.index', 'admin.tenants.*', false],
+        ['Subscriptions', 'receipt', 'admin.subscriptions.index', 'admin.subscriptions.*', false],
+        ['Plans', 'layer-group', 'admin.plans.index', 'admin.plans.*', false],
+        ['Financial accounts', 'building-columns', 'admin.accounts.index', 'admin.accounts.*', false],
+        ['Expenses', 'money-bill-wave', 'admin.expenses.index', 'admin.expenses.*', false],
+        ['Reports', 'chart-line', 'admin.reports.index', 'admin.reports.*', false],
+        ['Administrators', 'user-shield', 'admin.admins.index', 'admin.admins.*', true],
+        ['Activity log', 'clock-rotate-left', 'admin.logs.index', 'admin.logs.*', true],
+        ['Settings', 'gear', 'admin.settings.edit', 'admin.settings.*', true],
+        ['My account', 'user', 'admin.profile.edit', 'admin.profile.*', false],
     ];
 @endphp
 <!DOCTYPE html>
@@ -32,7 +37,8 @@
             </div>
             <ul class="sidebar-menu" id="sidebarMenu">
                 <li class="menu-heading"><span>{{ __('System administration') }}</span></li>
-                @foreach ($menu as [$label, $icon, $route, $pattern])
+                @foreach ($menu as [$label, $icon, $route, $pattern, $superOnly])
+                    @continue($superOnly && ! $admin->isSuper())
                     <li class="menu-item {{ request()->routeIs($pattern) ? 'active' : '' }}">
                         <a class="menu-link" href="{{ route($route) }}"><span class="menu-icon"><x-icon :name="$icon" /></span><span class="menu-text">{{ __($label) }}</span></a>
                     </li>
@@ -52,7 +58,7 @@
                 <div class="dropdown">
                     <button class="topbar-user" data-bs-toggle="dropdown" type="button" aria-expanded="false">
                         <span class="avatar avatar-sm avatar-soft-primary">{{ $admin->initials() }}</span>
-                        <span class="topbar-user-meta"><strong>{{ $admin->name }}</strong><small>{{ $admin->email }}</small></span>
+                        <span class="topbar-user-meta"><strong>{{ $admin->name }}</strong><small>{{ $admin->roleLabel() }}</small></span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end user-menu">
                         <li class="user-menu-head"><span class="avatar avatar-md avatar-soft-primary">{{ $admin->initials() }}</span><div><strong>{{ $admin->name }}</strong><small>{{ $admin->email }}</small></div></li>

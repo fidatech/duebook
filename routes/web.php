@@ -78,6 +78,7 @@ Route::middleware('auth:web')->group(function () {
     // open even when the trial or the subscription has ended: this is where a business pays
     Route::get('subscription', [BillingController::class, 'show'])->name('billing.show');
     Route::post('subscription', [BillingController::class, 'store'])->middleware('owner')->name('billing.store');
+    Route::get('subscription/receipt/{id}', [BillingController::class, 'receipt'])->whereNumber('id')->name('billing.receipt');
     Route::get('subscription/qr/{id}', [BillingController::class, 'qr'])->whereNumber('id')->name('billing.qr');
 
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -97,7 +98,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('login', [Admin\LoginController::class, 'store'])->name('login.store');
     });
 
-    Route::middleware('auth:admin')->group(function () {
+    Route::middleware(['auth:admin', 'admin.role'])->group(function () {
         Route::post('logout', [Admin\LoginController::class, 'destroy'])->name('logout');
         Route::get('/', Admin\DashboardController::class)->name('dashboard');
 
@@ -119,5 +120,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('profile', [Admin\ProfileController::class, 'edit'])->name('profile.edit');
         Route::put('profile', [Admin\ProfileController::class, 'update'])->name('profile.update');
         crud_routes('admins', Admin\AdminController::class, 'admins');
+        crud_routes('expenses', Admin\ExpenseController::class, 'expenses');
+        Route::get('subscriptions/{id}/print', [Admin\SubscriptionController::class, 'print'])->whereNumber('id')->name('subscriptions.print');
+        Route::get('reports', [Admin\ReportController::class, 'index'])->name('reports.index');
+        Route::get('logs', [Admin\LogController::class, 'index'])->name('logs.index');
+        Route::get('settings', [Admin\SettingsController::class, 'edit'])->name('settings.edit');
+        Route::put('settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
     });
 });

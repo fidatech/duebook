@@ -16,6 +16,18 @@ class Admin extends Authenticatable
         return ['password' => 'hashed', 'is_active' => 'boolean'];
     }
 
+    public const ROLES = ['super' => 'Super administrator', 'manager' => 'Manager', 'viewer' => 'Viewer'];
+
+    public function isSuper(): bool
+    {
+        return ($this->role ?? 'super') === 'super';
+    }
+
+    public function roleLabel(): string
+    {
+        return __(self::ROLES[$this->role ?? 'super'] ?? $this->role);
+    }
+
     public function initials(): string
     {
         return User::initialsOf($this->name);

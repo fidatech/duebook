@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\Platform;
 use App\Support\Tenants;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,14 +16,14 @@ class RegisterController extends Controller
 {
     public function show(): View
     {
-        abort_unless(config('duebook.registration'), 404);
+        abort_unless(Platform::bool('registration'), 404);
 
         return view('auth.register', ['timezones' => timezone_identifiers_list()]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless(config('duebook.registration'), 404);
+        abort_unless(Platform::bool('registration'), 404);
 
         $request->merge(['email' => strtolower(trim((string) $request->input('email'))), 'currency' => strtoupper(trim((string) $request->input('currency')))]);
         $data = $request->validate([

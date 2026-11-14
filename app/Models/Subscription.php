@@ -41,6 +41,20 @@ class Subscription extends Model
         return $this->paid_on !== null;
     }
 
+    /** Give a confirmed payment its receipt number: the next one in line. */
+    public function assignReceiptNumber(): void
+    {
+        if ($this->isPaid() && ! $this->receipt_no) {
+            $this->update(['receipt_no' => ((int) static::max('receipt_no')) + 1]);
+        }
+    }
+
+    /** "DB-00012", or null while the payment is not confirmed. */
+    public function receiptNumber(): ?string
+    {
+        return $this->receipt_no ? \App\Support\Platform::get('receipt_prefix').str_pad((string) $this->receipt_no, 5, '0', STR_PAD_LEFT) : null;
+    }
+
     public function isRejected(): bool
     {
         return $this->rejected_at !== null && ! $this->isPaid();

@@ -6,6 +6,8 @@ use App\Http\Controllers\CrudController;
 use App\Models\Plan;
 use App\Models\PlatformAccount;
 use App\Models\Subscription;
+use App\Models\AdminLog;
+use App\Support\Lifecycle;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Notice;
@@ -127,14 +129,29 @@ class SubscriptionController extends CrudController
         if ($record->isPaid() && $record->rejected_at) {
             $record->update(['rejected_at' => null, 'reject_reason' => null, 'reject_note' => null]);
         }
+        $newlyPaid = $record->isPaid() && ! $record->receipt_no;
+        $record->assignReceiptNumber();
         $record->apply();
+
+        if ($newlyPaid) {
+            AdminLog::record('confirmed payment', $record->tenant?->name, money($record->amount, $record->currency).' · '.$record->receiptNumber());
+            Lifecycle::paymentConfirmed($record);
+        }
+    }
+
+    protected function auditLabel(Model $record): string
+    {
+        return ($record->tenant?->name ?? '#'.$record->getKey()).' · '.money($record->amount, $record->currency);
     }
 
     protected function rowLinks(Model $record): array
     {
         $links = [];
         if ($record->receipt_path) {
-            $links[] = ['label' => __('Receipt'), 'icon' => 'paperclip', 'url' => route('admin.subscriptions.receipt', ['id' => $record->id]), 'blank' => true];
+            $links[] = ['label' => __('Screenshot'), 'icon' => 'paperclip', 'url' => route('admin.subscriptions.receipt', ['id' => $record->id]), 'blank' => true];
+        }
+        if ($record->receipt_no) {
+            $links[] = ['label' => $record->receiptNumber(), 'icon' => 'print', 'url' => route('admin.subscriptions.print', ['id' => $record->id]), 'blank' => true];
         }
         if (! $record->isPaid() && ! $record->isRejected()) {
             $links[] = ['label' => __('Confirm'), 'icon' => 'check', 'class' => 'btn-soft-success', 'url' => route('admin.subscriptions.edit', ['id' => $record->id, 'confirm' => 1])];
@@ -167,6 +184,7 @@ class SubscriptionController extends CrudController
         ], ['reject_reason.required' => __('Choose the reason.')]);
 
         $subscription->update($data + ['rejected_at' => now()]);
+        AdminLog::record('rejected payment', $subscription->tenant?->name, money($subscription->amount, $subscription->currency).' · '.$subscription->rejectLabel());
 
         $tenant = $subscription->tenant;
         $users = User::where('tenant_id', $tenant->id)->where('is_active', true)->get();
@@ -190,6 +208,14 @@ class SubscriptionController extends CrudController
         }
 
         return redirect()->route('admin.subscriptions.index', ['paid' => 'no'])->with('success', __('The payment of :name is rejected and the business is told why.', ['name' => $tenant->name]));
+    }
+
+    /** The numbered receipt of a confirmed payment, ready to print or save as PDF. */
+    public function print(int $id): View
+    {
+        $subscription = Subscription::with('tenant', 'plan', 'account')->whereNotNull('receipt_no')->findOrFail($id);
+
+        return view('receipts.show', ['subscription' => $subscription]);
     }
 
     /** The receipt a business uploaded with its "I have paid" request. */
