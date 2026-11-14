@@ -130,4 +130,22 @@ class BooksTest extends TestCase
         $this->get('/settings')->assertOk();
         $this->get('/team')->assertOk();
     }
+
+    public function test_a_record_can_be_added_from_a_pop_up_beside_a_pick_list(): void
+    {
+        $this->signIn($this->business());
+
+        // the pick lists of the contract form offer "+ New"
+        $this->get('/contracts/create')->assertOk()->assertSee('data-quick-add="'.route('clients.create').'"', false)->assertSee('data-quick-add="'.route('services.create').'"', false);
+        $this->get('/money/expense/create')->assertOk()->assertSee('data-quick-add="'.route('categories.create', ['type' => 'expense']).'"', false);
+
+        // the pop-up gets only the form, and saving answers with the new record
+        $this->get('/clients/create?modal=1')->assertOk()->assertSee('data-quick-form', false)->assertDontSee('app-sidebar', false);
+        $this->postJson('/clients', ['name' => 'Quick client', '_quick' => 1])->assertOk()->assertJsonPath('names.0', 'Quick client')->assertJsonCount(1, 'ids');
+        $this->postJson('/clients', ['name' => '', '_quick' => 1])->assertStatus(422)->assertJsonValidationErrors('name');
+        $this->postJson('/categories/expense', ['name' => 'Fuel', 'is_active' => 1, '_quick' => 1])->assertOk();
+
+        $this->get('/contracts/create')->assertOk()->assertSee('Quick client');
+        $this->get('/money/expense/create')->assertOk()->assertSee('Fuel');
+    }
 }

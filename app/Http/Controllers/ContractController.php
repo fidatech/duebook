@@ -55,8 +55,8 @@ class ContractController extends CrudController
     protected function fields(?Model $record): array
     {
         return [
-            ['name' => 'client_id', 'label' => 'Client', 'type' => 'select', 'search' => true, 'options' => Client::options(), 'default' => request()->query('client_id'), 'rules' => ['required', own('clients')]],
-            ['name' => 'service_id', 'label' => 'Service or product', 'type' => 'select', 'options' => Service::options(), 'rules' => ['nullable', own('services')]],
+            ['name' => 'client_id', 'label' => 'Client', 'type' => 'select', 'search' => true, 'options' => Client::options(), 'default' => request()->query('client_id'), 'rules' => ['required', own('clients')], 'quick' => ['New client', 'clients.create']],
+            ['name' => 'service_id', 'label' => 'Service or product', 'type' => 'select', 'options' => Service::options(), 'rules' => ['nullable', own('services')], 'quick' => ['New service or product', 'services.create']],
             ['name' => 'title', 'label' => 'What is it for', 'rules' => ['required', 'string', 'max:200'], 'help' => 'For example: example.com hosting and domain, or Accounting system yearly support.'],
             ['name' => 'reference', 'label' => 'Reference', 'rules' => ['nullable', 'string', 'max:200'], 'help' => 'Domain, cPanel user, contract number: anything that helps you find it.'],
             ['name' => 'amount', 'label' => 'Amount', 'type' => 'decimal', 'rules' => ['required', 'numeric', 'min:0']],

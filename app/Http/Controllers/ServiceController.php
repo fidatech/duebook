@@ -29,7 +29,7 @@ class ServiceController extends CrudController
             ['name' => 'price', 'label' => 'Usual price', 'type' => 'decimal', 'rules' => ['nullable', 'numeric', 'min:0']],
             ['name' => 'currency', 'label' => 'Currency', 'type' => 'select', 'default' => tenant()->currency, 'options' => currencies(), 'rules' => ['nullable', Rule::in(array_keys(currencies()))]],
             ['name' => 'cycle', 'label' => 'Usually paid', 'type' => 'select', 'default' => 'yearly', 'options' => array_map('__', config('duebook.cycle_labels')), 'rules' => ['required', Rule::in(array_keys(config('duebook.cycles')))]],
-            ['name' => 'category_id', 'label' => 'Income category', 'type' => 'select', 'options' => Category::options('income'), 'rules' => ['nullable', own('categories')], 'help' => 'Money received for this goes into this category.'],
+            ['name' => 'category_id', 'label' => 'Income category', 'type' => 'select', 'options' => Category::options('income'), 'rules' => ['nullable', own('categories')], 'help' => 'Money received for this goes into this category.', 'quick' => ['New income category', 'categories.create', ['type' => 'income']]],
             ['name' => 'is_active', 'label' => 'In use', 'type' => 'checkbox', 'default' => true],
         ];
     }

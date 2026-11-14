@@ -91,11 +91,12 @@ class TransactionController extends CrudController
             ['name' => 'date', 'label' => 'Date', 'type' => 'date', 'default' => today_iso(), 'rules' => ['required', 'date']],
             ['name' => 'amount', 'label' => 'Amount', 'type' => 'decimal', 'rules' => ['required', 'numeric', 'gt:0']],
             ['name' => 'currency', 'label' => 'Currency', 'type' => 'select', 'default' => tenant()->currency, 'options' => currencies(), 'rules' => ['required', Rule::in(array_keys(currencies()))]],
-            ['name' => 'category_id', 'label' => 'Category', 'type' => 'select', 'options' => Category::options($this->type()), 'rules' => ['required', own('categories')]],
+            ['name' => 'category_id', 'label' => 'Category', 'type' => 'select', 'options' => Category::options($this->type()), 'rules' => ['required', own('categories')],
+                'quick' => [$income ? 'New income category' : 'New expense category', 'categories.create', ['type' => $this->type()]]],
         ];
         if ($income) {
-            $fields[] = ['name' => 'client_id', 'label' => 'Client', 'type' => 'select', 'search' => true, 'options' => Client::options(), 'rules' => ['nullable', own('clients')]];
-            $fields[] = ['name' => 'service_id', 'label' => 'Service or product', 'type' => 'select', 'options' => Service::options(), 'rules' => ['nullable', own('services')]];
+            $fields[] = ['name' => 'client_id', 'label' => 'Client', 'type' => 'select', 'search' => true, 'options' => Client::options(), 'rules' => ['nullable', own('clients')], 'quick' => ['New client', 'clients.create']];
+            $fields[] = ['name' => 'service_id', 'label' => 'Service or product', 'type' => 'select', 'options' => Service::options(), 'rules' => ['nullable', own('services')], 'quick' => ['New service or product', 'services.create']];
         }
         $fields[] = ['name' => 'description', 'label' => 'Description', 'rules' => ['nullable', 'string', 'max:255'], 'col' => 12];
 

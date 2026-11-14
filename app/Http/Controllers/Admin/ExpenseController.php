@@ -78,7 +78,7 @@ class ExpenseController extends CrudController
             ['name' => 'category', 'label' => 'Category', 'type' => 'select', 'options' => array_map('__', PlatformExpense::CATEGORIES), 'rules' => ['required', Rule::in(array_keys(PlatformExpense::CATEGORIES))]],
             ['name' => 'amount', 'label' => 'Amount', 'type' => 'decimal', 'rules' => ['required', 'numeric', 'gt:0']],
             ['name' => 'currency', 'label' => 'Currency', 'default' => 'USD', 'rules' => ['required', 'alpha', 'size:3']],
-            ['name' => 'platform_account_id', 'label' => 'Paid from', 'type' => 'select', 'options' => $accounts, 'rules' => ['nullable', 'exists:platform_accounts,id'], 'help' => 'The account the money went out of. Its statement then shows the real balance.'],
+            ['name' => 'platform_account_id', 'label' => 'Paid from', 'type' => 'select', 'options' => $accounts, 'rules' => ['nullable', 'exists:platform_accounts,id'], 'help' => 'The account the money went out of. Its statement then shows the real balance.', 'quick' => ['New financial account', 'admin.accounts.create']],
             ['name' => 'description', 'label' => 'Description', 'rules' => ['nullable', 'string', 'max:255']],
         ];
     }

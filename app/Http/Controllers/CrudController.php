@@ -6,6 +6,7 @@ use App\Exceptions\UserError;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,8 @@ use Illuminate\View\View;
  *   meta     true: kept in the record's "meta" JSON column
  *   virtual  true: not saved on the record, only handed to afterSave()
  *   help     small grey text under the box
+ *   quick    for a select: ['New client', 'clients.create', [route parameters]] puts a "+ New" link in its
+ *            label, which adds a record in a pop-up without leaving the page and picks it in the list
  */
 abstract class CrudController extends Controller
 {
@@ -152,17 +155,28 @@ abstract class CrudController extends Controller
 
     public function create(Request $request): View
     {
-        return view('crud.form', $this->shared() + [
+        // ?modal=1: only the form, for the "add new" pop-up beside a pick list on another screen
+        return view($request->boolean('modal') ? 'crud.modal' : 'crud.form', $this->shared() + [
             'record' => null,
             'fields' => $this->fields(null),
             'action' => route($this->route.'.store', $this->routeParams()),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $record = $this->save($request, null);
         $this->audit('added', $record);
+
+        // added from the "add new" pop-up of another screen: that screen stays open,
+        // so it is told which record was made and picks it in its list
+        if ($request->boolean('_quick')) {
+            return response()->json([
+                'ids' => [$record->getKey()],
+                'names' => array_values(array_filter([$record->getAttribute('name')])),
+                'message' => __(':name saved.', ['name' => __($this->singular)]),
+            ]);
+        }
 
         return redirect()->to($this->afterStoreUrl($record, $request))->with('success', __(':name saved.', ['name' => __($this->singular)]));
     }

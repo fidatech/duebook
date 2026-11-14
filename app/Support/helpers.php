@@ -123,6 +123,18 @@ if (! function_exists('sums')) {
     }
 }
 
+if (! function_exists('quick_add')) {
+    /**
+     * Attributes that let a pick list add a new record in a pop-up without leaving the page:
+     *   <select name="client_id" id="client" {{ quick_add(__('New client'), 'clients.create') }}>
+     * The script puts a "+ New" link in the label of the list (the label must point at its id).
+     */
+    function quick_add(string $title, string $route, array $params = []): \Illuminate\Support\HtmlString
+    {
+        return new \Illuminate\Support\HtmlString('data-quick-add="'.e(route($route, $params)).'" data-quick-title="'.e($title).'"');
+    }
+}
+
 if (! function_exists('per_page')) {
     function per_page(int $usual = 25): int
     {

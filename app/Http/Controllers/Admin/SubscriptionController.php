@@ -83,7 +83,7 @@ class SubscriptionController extends CrudController
 
         return [
             ['name' => 'tenant_id', 'label' => 'Business', 'type' => 'select', 'search' => true, 'options' => Tenant::orderBy('name')->pluck('name', 'id')->all(), 'default' => request()->query('tenant'), 'rules' => ['required', 'exists:tenants,id']],
-            ['name' => 'plan_id', 'label' => 'Plan', 'type' => 'select', 'options' => Plan::orderBy('sort')->get()->mapWithKeys(fn (Plan $p) => [$p->id => $p->label()])->all(), 'rules' => ['required', 'exists:plans,id']],
+            ['name' => 'plan_id', 'label' => 'Plan', 'type' => 'select', 'options' => Plan::orderBy('sort')->get()->mapWithKeys(fn (Plan $p) => [$p->id => $p->label()])->all(), 'rules' => ['required', 'exists:plans,id'], 'quick' => ['New plan', 'admin.plans.create']],
             ['name' => 'starts_on', 'label' => 'From', 'type' => 'date', 'default' => now()->toDateString(), 'rules' => ['required', 'date']],
             ['name' => 'ends_on', 'label' => 'Until', 'type' => 'date', 'default' => now()->addYear()->toDateString(), 'rules' => ['nullable', 'date', 'after_or_equal:starts_on'], 'help' => 'Leave empty for a lifetime plan.'],
             ['name' => 'amount', 'label' => 'Amount', 'type' => 'decimal', 'rules' => ['required', 'numeric', 'min:0']],
@@ -92,7 +92,7 @@ class SubscriptionController extends CrudController
             ['name' => 'paid_on', 'label' => 'Paid on', 'type' => 'date', 'value' => $record && ! $record->paid_on && request()->boolean('confirm') ? ($record->sent_on ?? now()->toDateString()) : $record?->paid_on,
                 'rules' => ['nullable', 'date'], 'help' => 'Leave empty while the money has not come. Filling it in confirms the payment and gives the business access until the end date.'],
             ['name' => 'platform_account_id', 'label' => 'Received in', 'type' => 'select', 'options' => $accounts, 'rules' => ['nullable', 'required_with:paid_on', 'exists:platform_accounts,id'],
-                'help' => 'Needed once the payment is confirmed, so the statement of the account shows where the money came from.'],
+                'help' => 'Needed once the payment is confirmed, so the statement of the account shows where the money came from.', 'quick' => ['New financial account', 'admin.accounts.create']],
             ['name' => 'reference', 'label' => 'Transfer or receipt number', 'rules' => ['nullable', 'string', 'max:255']],
             ['name' => 'note', 'label' => 'Note', 'rules' => ['nullable', 'string', 'max:255'], 'col' => 12],
         ];

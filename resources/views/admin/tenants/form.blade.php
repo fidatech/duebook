@@ -80,7 +80,7 @@
                     <div class="col-12"><div class="border-top pt-3 mt-2"><h6 class="mb-0 text-uppercase small fw-semibold text-muted">{{ __('Plan and access') }}</h6></div></div>
                     <div class="col-12 col-md-6">
                         <label class="form-label" for="t-plan">{{ __('Plan') }}</label>
-                        <select class="form-select @error('plan_id') is-invalid @enderror" id="t-plan" name="plan_id" data-plain>
+                        <select class="form-select @error('plan_id') is-invalid @enderror" id="t-plan" name="plan_id" data-plain {{ quick_add(__('New plan'), 'admin.plans.create') }}>
                             <option value="">{{ __('No plan') }}</option>
                             @foreach ($plans as $plan)
                                 <option value="{{ $plan->id }}" @selected((string) $value('plan_id') === (string) $plan->id)>{{ $plan->label() }}</option>
