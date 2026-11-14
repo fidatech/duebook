@@ -1,0 +1,35 @@
+# After every push to main, sign in to the server over SSH and run deploy.sh there.
+# It can also be started by hand: GitHub > Actions > Deploy > Run workflow.
+#
+# Secrets to add once (GitHub > the repository > Settings > Secrets and variables > Actions):
+#   SSH_HOST   the IP address from hPanel > Advanced > SSH Access
+#   SSH_PORT   the port from the same page (65002 on Hostinger)
+#   SSH_USER   the username from the same page (u123456789)
+#   SSH_KEY    the PRIVATE key of a key pair made only for deploying; its public half is
+#              added in hPanel > SSH Access > SSH keys
+#   APP_DIR    the project folder on the server, e.g. domains/getduebook.com/duebook
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run deploy.sh on the server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd "${{ secrets.APP_DIR }}"
+            bash deploy.sh main

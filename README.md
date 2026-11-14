@@ -73,7 +73,7 @@ a title, description and canonical address on every page, Open Graph and Twitter
 (Organization, WebSite, SoftwareApplication with offers, FAQPage, BreadcrumbList), `/sitemap.xml`,
 `/robots.txt` and `/llms.txt`. The application itself stays `noindex`.
 
-Set `APP_URL` to the real address (https://duebookerp.com) on the server: every address the site gives
+Set `APP_URL` to the real address (https://getduebook.com) on the server: every address the site gives
 to search engines is built from it.
 
 ## Stack
@@ -110,6 +110,43 @@ written to `storage/logs`). Then add the Laravel scheduler to the server's cron:
 
 The scheduler runs `duebook:remind` every hour; each business gets its email once a day at the hour
 it chose. To try it now: `php artisan duebook:remind --force`.
+
+## Putting it online (Hostinger, getduebook.com)
+
+Once, on the server (hPanel > Advanced > SSH Access gives the `ssh` command; PHP must be 8.3 or newer
+under hPanel > Advanced > PHP Configuration):
+
+```
+cd ~/domains/getduebook.com
+git clone -b main https://github.com/fidatech/duebook.git duebook
+cd duebook
+composer2 install --no-dev --optimize-autoloader
+cp .env.example .env            # then fill it in: see below
+php artisan key:generate
+php artisan migrate --force --seed
+php artisan app:create-admin
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+
+# the web server shows public_html: make it the public folder of the project
+cd ~/domains/getduebook.com
+mv public_html public_html.old
+ln -s duebook/public public_html
+```
+
+In `.env` on the server: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://getduebook.com`, the
+`DB_*` lines of the MySQL database made in hPanel, and the `MAIL_*` lines of a mailbox such as
+`no-reply@getduebook.com` (`MAIL_MAILER=smtp`, `MAIL_HOST=smtp.hostinger.com`, `MAIL_PORT=465`,
+`MAIL_SCHEME=smtps`).
+
+Cron job (hPanel > Advanced > Cron Jobs), every minute, or at least every hour on minute 0:
+
+```
+/usr/bin/php /home/USERNAME/domains/getduebook.com/duebook/artisan schedule:run
+```
+
+**Updates.** `bash deploy.sh` on the server brings it up to date with the `main` branch. The workflow
+`.github/workflows/deploy.yml` runs it over SSH after every push to `main`, once the five secrets named
+at the top of that file are added to the repository.
 
 ## Tests
 
