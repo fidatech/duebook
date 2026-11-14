@@ -24,4 +24,5 @@ return [
     ['heading' => 'Account'],
     ['label' => 'Team', 'icon' => 'user-group', 'route' => 'team.index', 'active' => 'team.*', 'owner' => true],
     ['label' => 'Settings', 'icon' => 'gear', 'route' => 'settings.edit', 'owner' => true],
+    ['label' => 'Subscription', 'icon' => 'credit-card', 'route' => 'billing.show'],
 ];

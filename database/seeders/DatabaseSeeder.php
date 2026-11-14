@@ -5,15 +5,13 @@ namespace Database\Seeders;
 use App\Models\Plan;
 use Illuminate\Database\Seeder;
 
-/** Example plans to start with. Change the names, prices and limits under /admin > Plans. */
+/** The plan every new business starts on: 200 USD a year after the free trial. Change it under /admin > Plans. */
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
         $plans = [
-            ['name' => 'Starter', 'price' => 60, 'max_clients' => 50, 'max_users' => 1, 'sort' => 1, 'description' => 'For one person with up to 50 clients.'],
-            ['name' => 'Business', 'price' => 150, 'max_clients' => 500, 'max_users' => 5, 'sort' => 2, 'description' => 'For a small team with up to 500 clients.'],
-            ['name' => 'Unlimited', 'price' => 300, 'max_clients' => null, 'max_users' => null, 'sort' => 3, 'description' => 'No limits.'],
+            ['name' => 'DueBook Yearly', 'price' => 200, 'max_clients' => null, 'max_users' => null, 'sort' => 1, 'description' => 'Everything, with no limits, for one year.'],
         ];
 
         foreach ($plans as $plan) {

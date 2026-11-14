@@ -25,11 +25,16 @@ installed app (bottom bar, cards instead of tables, "Add to Home Screen").
 - **Reminder emails**: one email a day to the business (what is coming, what is late), and, for
   contracts where it is switched on, an email to the client. Days and hour are set in Settings.
 - Team (owner and members), several currencies (never converted, totals are per currency), time zone.
+- **Subscription**: days of free trial left, the price, how to pay, and an "I have paid" form with
+  an optional receipt. The page stays open after the trial or the subscription has ended.
 
 **For the platform owner (`/admin`, separate sign-in)**
 
 - Businesses: open, edit, set plan, trial and paid-until dates, suspend, delete.
 - Plans with limits (clients, users), subscriptions, and the financial accounts the money is received in.
+  The details of an account in use are shown to businesses as the way to pay.
+- A business that says it has paid appears on the admin dashboard; pressing **Confirm** and saving
+  (with "Paid on" filled in) makes it active until the end date. Nothing is charged automatically.
 - Administrators.
 
 All businesses share one database; every row carries a `tenant_id` and a model with the
@@ -48,11 +53,12 @@ composer install
 cp .env.example .env
 php artisan key:generate
 # create the database named in .env (DB_DATABASE), then:
-php artisan migrate --seed          # the seed adds three example plans
+php artisan migrate --seed          # the seed adds the plan: 200 USD a year
 php artisan app:create-admin        # your sign-in for /admin
 php artisan serve
 ```
 
+- A new business gets 7 free days (`TRIAL_DAYS`), then pays 200 USD a year (change it under `/admin` > Plans).
 - Businesses sign up at `/register` (switch off with `REGISTRATION_OPEN=false`) or are opened by an
   administrator under `/admin` > Businesses.
 - For your own business: open it in `/admin` with status **Active** and **Paid until** empty; it never ends.

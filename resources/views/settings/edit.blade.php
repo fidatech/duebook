@@ -90,6 +90,7 @@
                     <li><span class="text-muted small flex-grow-1">{{ __('Clients allowed') }}</span><span class="fw-semibold">{{ $plan?->max_clients ?: __('No limit') }}</span></li>
                     <li><span class="text-muted small flex-grow-1">{{ __('Users allowed') }}</span><span class="fw-semibold">{{ $plan?->max_users ?: __('No limit') }}</span></li>
                 </ul>
+                <a class="btn btn-soft-primary w-100 mt-3" href="{{ route('billing.show') }}"><x-icon name="credit-card" class="me-1" /> {{ __('Subscription') }}</a>
                 @if ($subscriptions->isNotEmpty())
                     <div class="small fw-semibold text-muted mt-3 mb-2">{{ __('Payments for your plan') }}</div>
                     <ul class="list-clean">

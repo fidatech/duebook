@@ -38,7 +38,7 @@ class AccountController extends CrudController
             ['name' => 'type', 'label' => 'Kind', 'type' => 'select', 'default' => 'bank', 'options' => array_map('__', self::TYPES), 'rules' => ['required', Rule::in(array_keys(self::TYPES))]],
             ['name' => 'currency', 'label' => 'Currency', 'default' => 'USD', 'rules' => ['required', 'alpha', 'size:3'], 'help' => 'Three letters, for example USD'],
             ['name' => 'is_active', 'label' => 'In use', 'type' => 'checkbox', 'default' => true],
-            ['name' => 'details', 'label' => 'Details', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:2000'], 'col' => 12, 'help' => 'Bank name, branch, the last digits of the account: enough to recognise it.'],
+            ['name' => 'details', 'label' => 'Details', 'type' => 'textarea', 'rules' => ['nullable', 'string', 'max:2000'], 'col' => 12, 'help' => 'Businesses see this on their Subscription page as the way to pay you: write the bank name, account name and number, or the wallet number.'],
         ];
     }
 

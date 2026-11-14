@@ -65,6 +65,19 @@ class Tenant extends Model
         return $end === null || $end->toDateString() >= now($this->timezone ?: 'UTC')->toDateString();
     }
 
+    /** Whole days of use left, 0 on the last day, below zero when it ended. Null when there is no end. */
+    public function daysLeft(): ?int
+    {
+        $end = $this->endsOn();
+
+        if (! $end) {
+            return null;
+        }
+        $today = \Illuminate\Support\Carbon::parse(now($this->timezone ?: 'UTC')->toDateString());
+
+        return (int) $today->diffInDays(\Illuminate\Support\Carbon::parse($end->toDateString()), false);
+    }
+
     public function statusLabel(): string
     {
         if ($this->status === self::SUSPENDED) {

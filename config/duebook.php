@@ -5,7 +5,7 @@ return [
     'registration' => (bool) env('REGISTRATION_OPEN', true),
 
     // days a new business may use the system before it needs a paid plan
-    'trial_days' => (int) env('TRIAL_DAYS', 14),
+    'trial_days' => (int) env('TRIAL_DAYS', 7),
 
     // how often a contract comes due: name => months (0 = paid once)
     'cycles' => [

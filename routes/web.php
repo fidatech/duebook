@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ContractController;
@@ -74,6 +75,10 @@ Route::middleware('auth:web')->group(function () {
         });
     });
 
+    // open even when the trial or the subscription has ended: this is where a business pays
+    Route::get('subscription', [BillingController::class, 'show'])->name('billing.show');
+    Route::post('subscription', [BillingController::class, 'store'])->middleware('owner')->name('billing.store');
+
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('profile/password', [ProfileController::class, 'password'])->name('profile.password');
@@ -104,6 +109,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         crud_routes('plans', Admin\PlanController::class, 'plans');
         crud_routes('subscriptions', Admin\SubscriptionController::class, 'subscriptions');
+        Route::get('subscriptions/{id}/receipt', [Admin\SubscriptionController::class, 'receipt'])->whereNumber('id')->name('subscriptions.receipt');
         crud_routes('accounts', Admin\AccountController::class, 'accounts');
         crud_routes('admins', Admin\AdminController::class, 'admins');
     });

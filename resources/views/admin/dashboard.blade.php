@@ -14,6 +14,14 @@
     <a class="btn btn-primary" href="{{ route('admin.tenants.create') }}"><x-icon name="plus" class="me-1" /> {{ __('New business') }}</a>
 </x-page-header>
 
+@if ($waiting)
+    <a href="{{ route('admin.subscriptions.index', ['paid' => 'no']) }}" class="alert alert-warning d-flex align-items-center gap-2 text-decoration-none">
+        <x-icon name="triangle-exclamation" />
+        <span class="flex-grow-1">{{ trans_choice('{1} 1 business says it has paid. Check the money and confirm.|[2,*] :count businesses say they have paid. Check the money and confirm.', $waiting, ['count' => $waiting]) }}</span>
+        <x-icon name="chevron-right" />
+    </a>
+@endif
+
 <div class="row g-3 mb-3">
     @foreach ($cards as [$label, $icon, $tone, $count])
         <div class="col-6 col-xl-3">

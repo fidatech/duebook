@@ -1,4 +1,6 @@
 @php
+    // days of free trial left, shown as a bar on every page until the business subscribes
+    $trialLeft = tenant()?->status === \App\Models\Tenant::TRIAL && tenant()->isUsable() ? tenant()->daysLeft() : null;
     $quick = [
         ['Receive a payment', 'hand-holding-dollar', route('dues.index', ['when' => 'all']), 'success'],
         ['New client', 'user-plus', route('clients.create'), 'primary'],
@@ -20,6 +22,13 @@
         @include('partials.topbar')
         <main class="app-content">
             <div class="content-container">
+                @if ($trialLeft !== null && ! request()->routeIs('billing.*'))
+                    <a href="{{ route('billing.show') }}" class="alert alert-warning d-flex align-items-center gap-2 text-decoration-none py-2">
+                        <x-icon name="hourglass-half" />
+                        <span class="flex-grow-1">{{ $trialLeft > 0 ? trans_choice('{1} Your free trial ends tomorrow.|[2,*] :count days of your free trial are left.', $trialLeft, ['count' => $trialLeft]) : __('Your free trial ends today.') }} <strong>{{ __('Subscribe') }}</strong></span>
+                        <x-icon name="chevron-right" />
+                    </a>
+                @endif
                 @yield('content')
             </div>
         </main>
