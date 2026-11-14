@@ -6,6 +6,7 @@
     $groups = [
         [__('Trial and sign-up'), __('What a new business gets.'), [
             $text('trial_days', 'Free trial, in days', 'Used for businesses that sign up from now on. 0 means no free trial.', 4, 'number'),
+            $text('renew_open_days', 'Renewal opens, days before the end', 'A paid period is not changed or paid back. In its last days the business may renew or choose another plan, which starts when the period ends.', 12, 'number'),
         ]],
         [__('Payments'), __('Shown on the Subscription page of businesses and on receipts.'), [
             $text('pay_note', 'Words beside the price', 'For example: or the equivalent in AFN'),

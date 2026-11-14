@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Support\Lifecycle as Emails;
 use Illuminate\Console\Command;
@@ -30,6 +31,13 @@ class Lifecycle extends Command
                 continue;
             }
             try {
+                // a plan bought for the next period takes over on the day that period starts
+                $running = Subscription::runningFor($tenant);
+                if ($running && $running->plan_id && $running->plan_id !== $tenant->plan_id
+                    && $running->starts_on->toDateString() === now($tenant->timezone ?: 'UTC')->toDateString()) {
+                    $tenant->update(['plan_id' => $running->plan_id]);
+                    $this->info($tenant->name.': plan changed');
+                }
                 if ($kind = Emails::check($tenant)) {
                     $this->info($tenant->name.': '.$kind);
                 }

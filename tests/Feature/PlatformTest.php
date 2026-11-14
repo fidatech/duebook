@@ -22,7 +22,7 @@ class PlatformTest extends TestCase
         $this->systemAdmin();
 
         $this->get('/admin/settings')->assertOk();
-        $this->put('/admin/settings', ['trial_days' => 3, 'registration' => 0, 'pay_note' => 'or the same in AFN', 'renew_warn_days' => '7, 1', 'trial_warn_days' => '2', 'receipt_prefix' => 'INV-'])
+        $this->put('/admin/settings', ['trial_days' => 3, 'renew_open_days' => 30, 'registration' => 0, 'pay_note' => 'or the same in AFN', 'renew_warn_days' => '7, 1', 'trial_warn_days' => '2', 'receipt_prefix' => 'INV-'])
             ->assertSessionHasNoErrors();
 
         $this->assertSame('2026-11-17', $this->business()->trial_ends_at->toDateString());

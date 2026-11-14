@@ -5,7 +5,9 @@
     $trial = $tenant->status === 'trial';
     $forever = $tenant->status === 'active' && $tenant->endsOn() === null;
     $choosing = $plans->isNotEmpty() && ! $forever && $tenant->status !== 'suspended';
-    $canPay = $choosing && $plan && ! $pending && ! ($tooSmall[$plan->id] ?? null);
+    $canPay = $choosing && $open && $plan && ! $pending && ! ($tooSmall[$plan->id] ?? null);
+    // a paid period is still running: what is bought now starts when it ends
+    $nextPeriod = $open && ! $trial && $usable;
     $kinds = \App\Http\Controllers\Admin\AccountController::TYPES;
     $per = ['monthly' => __('a month'), 'yearly' => __('a year'), 'lifetime' => __('once')];
     // "199 USD", without useless zeros
@@ -132,18 +134,36 @@
                                 <div class="small text-muted text-center">{{ __('This plan is no longer offered. Choose another one to renew.') }}</div>
                             @elseif ($problem)
                                 <div class="small text-danger text-center">{{ $problem }}</div>
+                            @elseif (! $open)
+                                <div class="small text-muted text-center">{{ $isCurrent ? __('You can renew from :date.', ['date' => fmt_date($opensOn)]) : __('You can change to this plan from :date.', ['date' => fmt_date($opensOn)]) }}</div>
                             @elseif ($pending)
                                 @if ($pending->plan_id === $option->id)<div class="small text-muted text-center">{{ __('Your payment for this plan is being checked.') }}</div>@endif
                             @elseif ($isChosen)
                                 <a class="btn btn-primary w-100" href="#pay"><x-icon name="check" class="me-1" /> {{ __('Selected: pay below') }}</a>
                             @else
-                                <a class="btn btn-outline-primary w-100" href="{{ route('billing.show', ['plan' => $option->id]) }}#pay">{{ $isCurrent ? ($trial || ! $usable ? __('Choose this plan') : __('Renew this plan')) : ($current && ! $trial ? __('Switch to this plan') : __('Choose this plan')) }}</a>
+                                <a class="btn btn-outline-primary w-100" href="{{ route('billing.show', ['plan' => $option->id]) }}#pay">{{ $isCurrent ? ($nextPeriod ? __('Renew this plan') : __('Choose this plan')) : ($nextPeriod ? __('Change to this plan') : __('Choose this plan')) }}</a>
                             @endif
                         </div>
                     </div>
                 </div>
             </div>
         @endforeach
+    </div>
+@endif
+
+@if ($choosing && ! $pending)
+    <div class="alert {{ $open ? 'alert-info' : 'alert-secondary' }} d-flex align-items-start gap-2 py-2">
+        <x-icon name="circle-info" class="mt-1" />
+        <div class="small">
+            @if (! $open)
+                {{ __('Your plan is paid until :date. From :from you can renew it or choose another plan for the next period.', ['date' => fmt_date($tenant->endsOn()), 'from' => fmt_date($opensOn)]) }}
+            @elseif ($nextPeriod)
+                {{ __('Your current plan stays as it is until :date. What you choose now starts the day after.', ['date' => fmt_date($tenant->endsOn())]) }}
+            @else
+                {{ __('Choose a plan, pay, and send the screenshot.') }}
+            @endif
+            <strong>{{ __('Payments are not refunded, and a paid period cannot be changed to another plan.') }}</strong>
+        </div>
     </div>
 @endif
 

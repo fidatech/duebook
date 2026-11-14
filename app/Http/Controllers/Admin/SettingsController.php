@@ -28,6 +28,7 @@ class SettingsController extends Controller
         $days = ['nullable', 'string', 'max:60', 'regex:/^\s*\d{1,3}(\s*[,;\s]\s*\d{1,3})*\s*$/'];
         $data = $request->validate([
             'trial_days' => ['required', 'integer', 'between:0,365'],
+            'renew_open_days' => ['required', 'integer', 'between:0,365'],
             'pay_note' => ['nullable', 'string', 'max:150'],
             'billing_email' => ['nullable', 'string', 'max:500', function (string $attribute, mixed $value, \Closure $fail) {
                 foreach (preg_split('/[\s,;]+/', (string) $value, -1, PREG_SPLIT_NO_EMPTY) as $email) {

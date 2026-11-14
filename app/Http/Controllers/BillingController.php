@@ -45,6 +45,9 @@ class BillingController extends Controller
             // a plan that allows fewer clients or users than the business already has cannot be chosen
             'tooSmall' => $plans->mapWithKeys(fn (Plan $p) => [$p->id => $this->tooSmall($p, $clients, $users)])->all(),
             'left' => $tenant->daysLeft(),
+            // a paid period cannot be changed or paid back: choosing opens only near its end (or after it)
+            'open' => $this->open($tenant),
+            'opensOn' => $this->opensOn($tenant),
             'period' => $plan ? $this->period($tenant, $plan) : null,
             'accounts' => PlatformAccount::where('is_active', true)->orderBy('name')->get(),
             'pending' => $pending = $tenant->subscriptions()->waiting()->with('plan')->orderByDesc('id')->first(),
@@ -63,6 +66,9 @@ class BillingController extends Controller
         }
         if ($tenant->subscriptions()->waiting()->exists()) {
             throw new UserError(__('Your payment is already waiting to be confirmed.'));
+        }
+        if (! $this->open($tenant)) {
+            throw new UserError(__('Your current plan is paid until :date. You can renew it or choose another plan from :from.', ['date' => fmt_date($tenant->endsOn()), 'from' => fmt_date($this->opensOn($tenant))]));
         }
 
         $data = $request->validate([
@@ -97,6 +103,32 @@ class BillingController extends Controller
         $this->tellAdministrators($subscription);
 
         return redirect()->route('billing.show')->with('success', __('Thank you. We will check your payment and switch your subscription on.'));
+    }
+
+    /**
+     * May the business choose a plan and pay now? Yes on a trial and after the end. While a paid
+     * period runs: only in its last days (Settings: "renewal opens"), and what is bought then
+     * starts when the current period ends. A business with no end date has nothing to pay.
+     */
+    private function open(Tenant $tenant): bool
+    {
+        if ($tenant->status === Tenant::SUSPENDED) {
+            return false;
+        }
+        if ($tenant->status === Tenant::TRIAL || ! $tenant->isUsable()) {
+            return true;
+        }
+        $left = $tenant->daysLeft();
+
+        return $left !== null && $left <= (int) platform('renew_open_days');
+    }
+
+    /** The first day a business with a running paid period may renew or change its plan. */
+    private function opensOn(Tenant $tenant): ?Carbon
+    {
+        $end = $tenant->status === Tenant::ACTIVE ? $tenant->subscription_ends_at : null;
+
+        return $end ? $end->copy()->subDays((int) platform('renew_open_days')) : null;
     }
 
     /** The plans on offer, in their order; the plan of the business is added when it is no longer offered. */

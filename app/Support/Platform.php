@@ -22,6 +22,7 @@ class Platform
         'support_whatsapp' => '',
         'trial_warn_days' => '2',
         'renew_warn_days' => '7, 1',
+        'renew_open_days' => 30,
         'receipt_prefix' => 'DB-',
         'company_name' => '',
         'company_address' => '',

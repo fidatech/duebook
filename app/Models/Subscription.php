@@ -89,20 +89,45 @@ class Subscription extends Model
         return __(config('duebook.reject_reasons')[$this->reject_reason]['label'] ?? 'Rejected');
     }
 
-    /** The business follows its latest confirmed subscription: plan, active status and end date. */
+    /** After this payment is confirmed, the business follows its paid periods. */
     public function apply(): void
     {
-        if (! $this->isPaid()) {
+        if ($this->isPaid() && $this->tenant) {
+            static::syncTenant($this->tenant);
+        }
+    }
+
+    /**
+     * Put a business in step with what it paid for: it is active until the end of its last
+     * paid period, and its plan is the plan of the period that is running today. A period
+     * bought for later (a renewal, or another plan chosen before the current one ended)
+     * only changes the plan on the day it starts: nothing is paid back and no days are lost.
+     */
+    public static function syncTenant(Tenant $tenant): void
+    {
+        $paid = $tenant->subscriptions()->whereNotNull('paid_on')->get();
+        if ($paid->isEmpty()) {
             return;
         }
-        $tenant = $this->tenant;
-        $latest = $tenant->subscriptions()->whereNotNull('paid_on')->orderByRaw('ends_on is null desc')->orderByDesc('ends_on')->orderByDesc('id')->first();
-        if ($latest && $latest->id === $this->id) {
-            $tenant->update([
-                'plan_id' => $this->plan_id,
-                'subscription_ends_at' => $this->ends_on,
-                'status' => $tenant->status === Tenant::SUSPENDED ? Tenant::SUSPENDED : Tenant::ACTIVE,
-            ]);
-        }
+        $forever = $paid->contains(fn (self $s) => $s->ends_on === null);
+        $running = static::runningFor($tenant, $paid) ?? $paid->sortByDesc(fn (self $s) => $s->ends_on?->toDateString() ?? '9999-12-31')->first();
+
+        $tenant->update([
+            'plan_id' => $running->plan_id,
+            'subscription_ends_at' => $forever ? null : $paid->max(fn (self $s) => $s->ends_on->toDateString()),
+            'status' => $tenant->status === Tenant::SUSPENDED ? Tenant::SUSPENDED : Tenant::ACTIVE,
+        ]);
+    }
+
+    /** The paid period of a business that covers today (the newest one, if several do). */
+    public static function runningFor(Tenant $tenant, ?\Illuminate\Support\Collection $paid = null): ?self
+    {
+        $today = now($tenant->timezone ?: 'UTC')->toDateString();
+        $paid ??= $tenant->subscriptions()->whereNotNull('paid_on')->get();
+
+        return $paid
+            ->filter(fn (self $s) => $s->starts_on->toDateString() <= $today && ($s->ends_on === null || $s->ends_on->toDateString() >= $today))
+            ->sortByDesc(fn (self $s) => $s->starts_on->toDateString().'-'.str_pad((string) $s->id, 10, '0', STR_PAD_LEFT))
+            ->first();
     }
 }

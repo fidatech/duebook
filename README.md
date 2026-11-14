@@ -25,8 +25,10 @@ installed app (bottom bar, cards instead of tables, "Add to Home Screen").
 - **Reminder emails**: one email a day to the business (what is coming, what is late), and, for
   contracts where it is switched on, an email to the client. Days and hour are set in Settings.
 - Team (owner and members), several currencies (never converted, totals are per currency), time zone.
-- **Subscription**: days of free trial left, the price, how to pay, and an "I have paid" form with
-  an optional receipt. The page stays open after the trial or the subscription has ended.
+- **Subscription**: every plan on offer with the current one marked, how to pay, and an "I have paid" form
+  with the screenshot. A business chooses a plan on its trial and after the end. A paid period is never
+  refunded or changed: in its last 30 days (a setting) the business may renew or choose another plan,
+  which starts when the period ends. The page stays open after the trial or the subscription has ended.
 
 **For the platform owner (`/admin`, separate sign-in)**
 
