@@ -27,10 +27,11 @@ class PersonEntry extends Model
     }
 
     /** Balance of every person by currency: [person_id => [currency => balance]]. */
-    public static function balances(?int $tenantId = null): array
+    public static function balances(?int $tenantId = null, ?string $currency = null): array
     {
         $rows = static::query()
             ->when($tenantId, fn ($query) => $query->where('person_entries.tenant_id', $tenantId))
+            ->when($currency, fn ($query) => $query->where('currency', $currency))
             ->selectRaw("person_id, currency, sum(case when direction = 'gave' then amount else -amount end) as balance")
             ->groupBy('person_id', 'currency')->get();
 

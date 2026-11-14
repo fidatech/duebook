@@ -148,4 +148,40 @@ class BooksTest extends TestCase
         $this->get('/contracts/create')->assertOk()->assertSee('Quick client');
         $this->get('/money/expense/create')->assertOk()->assertSee('Fuel');
     }
+
+    public function test_several_currencies_are_kept_apart_and_can_be_filtered_on_every_page(): void
+    {
+        $tenant = $this->business();
+        $this->signIn($tenant);
+
+        // the owner ticks AFN and PKR beside the main currency
+        $this->put('/settings', ['name' => 'Acme', 'timezone' => 'UTC', 'currency' => 'USD', 'picked' => ['AFN', 'PKR'], 'currencies' => 'omr', 'remind_days' => '30, 7, 1, 0', 'remind_hour' => 8])->assertSessionHasNoErrors();
+        $this->assertSame(['USD', 'AFN', 'PKR', 'OMR'], $tenant->fresh()->currencies);
+
+        $this->contract(['title' => 'Dollar hosting', 'amount' => 60, 'currency' => 'USD']);
+        $afn = $this->contract(['title' => 'Afghani support', 'amount' => 5000, 'currency' => 'AFN']);
+        $this->contract(['title' => 'Rupee website', 'amount' => 30000, 'currency' => 'PKR']);
+        $this->post('/contracts/'.$afn->id.'/pay', ['amount' => '5,000', 'paid_on' => '2026-11-14', 'advance' => 1])->assertRedirect();
+        $person = Person::create(['name' => 'Karim']);
+        $person->entries()->create(['direction' => 'gave', 'amount' => 10000, 'currency' => 'PKR', 'date' => '2026-11-01']);
+        $person->entries()->create(['direction' => 'received', 'amount' => 20, 'currency' => 'USD', 'date' => '2026-11-02']);
+
+        // all currencies side by side, never added together
+        $this->get('/dues?when=all')->assertOk()->assertSee('Dollar hosting')->assertSee('Rupee website')->assertSee('60.00 USD')->assertSee('30,000.00 PKR');
+        $this->get('/dashboard')->assertOk()->assertSee('5,000.00 AFN')->assertSee('10,000.00 PKR')->assertSee('20.00 USD');
+
+        // one currency at a time
+        $this->get('/dues?when=all&currency=PKR')->assertOk()->assertSee('Rupee website')->assertDontSee('Dollar hosting');
+        $this->get('/contracts?currency=afn')->assertOk()->assertSee('Afghani support')->assertDontSee('Rupee website');
+        $this->get('/money/income?currency=AFN')->assertOk()->assertSee('Afghani support');
+        $this->get('/money/income?currency=USD')->assertOk()->assertDontSee('Afghani support');
+        $this->get('/dashboard?currency=PKR')->assertOk()->assertSee('10,000.00 PKR')->assertDontSee('5,000.00 AFN')->assertDontSee('20.00 USD');
+        $this->get('/people?currency=PKR')->assertOk()->assertSee('owes you 10,000.00 PKR')->assertDontSee('you owe 20.00 USD');
+        $this->get('/people/'.$person->id.'?currency=USD')->assertOk()->assertSee('20.00 USD');
+        $this->get('/reports?currency=AFN')->assertOk()->assertSee('AFN')->assertDontSee('30,000.00 PKR');
+        $this->get('/services?currency=PKR')->assertOk();
+
+        // a code the business does not use is ignored
+        $this->get('/dues?when=all&currency=XYZ')->assertOk()->assertSee('Dollar hosting')->assertSee('Rupee website');
+    }
 }

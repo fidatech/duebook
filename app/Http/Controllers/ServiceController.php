@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Service;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class ServiceController extends CrudController
@@ -20,6 +22,16 @@ class ServiceController extends CrudController
     protected string $icon = 'box';
 
     protected array $with = ['category'];
+
+    protected function query(Request $request): Builder
+    {
+        return Service::query()->when(picked_currency(), fn (Builder $q, $code) => $q->where('currency', $code));
+    }
+
+    protected function filters(Request $request): array
+    {
+        return [['name' => 'currency', 'label' => __('Currency'), 'options' => currencies(), 'value' => picked_currency()]];
+    }
 
     protected function fields(?Model $record): array
     {

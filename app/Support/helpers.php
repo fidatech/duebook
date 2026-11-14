@@ -68,6 +68,16 @@ if (! function_exists('currencies')) {
     }
 }
 
+if (! function_exists('picked_currency')) {
+    /** The currency chosen with the chips above a page (?currency=AFN), or null for all of them. */
+    function picked_currency(): ?string
+    {
+        $code = strtoupper((string) request()->query('currency'));
+
+        return $code !== '' && isset(currencies()[$code]) ? $code : null;
+    }
+}
+
 if (! function_exists('today_iso')) {
     /** Today in the time zone of the business. */
     function today_iso(): string

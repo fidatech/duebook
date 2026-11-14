@@ -62,7 +62,7 @@ class TransactionController extends CrudController
     {
         return Transaction::query()->where('type', $this->type())
             ->when($request->query('category'), fn (Builder $q, $id) => $q->where('category_id', $id))
-            ->when($request->query('currency'), fn (Builder $q, $code) => $q->where('currency', $code))
+            ->when(picked_currency(), fn (Builder $q, $code) => $q->where('currency', $code))
             ->when($request->query('from'), fn (Builder $q, $date) => $q->where('date', '>=', $date))
             ->when($request->query('to'), fn (Builder $q, $date) => $q->where('date', '<=', $date));
     }
@@ -71,7 +71,7 @@ class TransactionController extends CrudController
     {
         return [
             ['name' => 'category', 'label' => __('Category'), 'options' => Category::options($this->type()), 'value' => $request->query('category')],
-            ['name' => 'currency', 'label' => __('Currency'), 'options' => currencies(), 'value' => $request->query('currency')],
+            ['name' => 'currency', 'label' => __('Currency'), 'options' => currencies(), 'value' => picked_currency()],
             ['name' => 'from', 'label' => __('From'), 'type' => 'date', 'value' => $request->query('from')],
             ['name' => 'to', 'label' => __('To'), 'type' => 'date', 'value' => $request->query('to')],
         ];

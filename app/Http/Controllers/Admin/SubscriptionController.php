@@ -54,6 +54,7 @@ class SubscriptionController extends CrudController
     {
         return Subscription::query()
             ->when($request->query('tenant'), fn (Builder $q, $id) => $q->where('tenant_id', $id))
+            ->when($request->query('currency'), fn (Builder $q, $code) => $q->where('currency', strtoupper($code)))
             ->when($request->query('account') === 'none', fn (Builder $q) => $q->whereNotNull('paid_on')->whereNull('platform_account_id'))
             ->when(is_numeric($request->query('account')), fn (Builder $q) => $q->where('platform_account_id', (int) $request->query('account')))
             ->when($request->query('paid') === 'no', fn (Builder $q) => $q->whereNull('paid_on')->whereNull('rejected_at'))
@@ -66,6 +67,7 @@ class SubscriptionController extends CrudController
         return [
             ['name' => 'tenant', 'label' => __('Business'), 'options' => Tenant::orderBy('name')->pluck('name', 'id')->all(), 'value' => $request->query('tenant')],
             ['name' => 'account', 'label' => __('Received in'), 'options' => PlatformAccount::orderBy('name')->pluck('name', 'id')->all() + ['none' => __('Paid, no account chosen')], 'value' => $request->query('account')],
+            ['name' => 'currency', 'label' => __('Currency'), 'options' => Subscription::query()->distinct()->orderBy('currency')->pluck('currency', 'currency')->all(), 'value' => strtoupper((string) $request->query('currency'))],
             ['name' => 'paid', 'label' => __('Paid or not'), 'options' => ['no' => __('Waiting'), 'yes' => __('Paid'), 'rejected' => __('Rejected')], 'value' => $request->query('paid')],
         ];
     }

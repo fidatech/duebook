@@ -1,14 +1,15 @@
 @extends('layouts.app', ['title' => __('app.dashboard.title')])
 
 @php
+    $keep = picked_currency() ? ['currency' => picked_currency()] : [];
     $total = fn ($rows) => sums($rows->pluck('total', 'currency'));
     $cards = [
-        [__('Late payments'), 'triangle-exclamation', 'danger', (string) $overdue->sum('n'), $total($overdue), route('dues.index', ['when' => 'overdue'])],
-        [__('Due in the next 30 days'), 'bell', 'warning', (string) $soon->sum('n'), $total($soon), route('dues.index', ['when' => 'month'])],
-        [__('Income this month'), 'arrow-trend-up', 'success', null, sums($income), route('money.index', ['type' => 'income'])],
-        [__('Expenses this month'), 'receipt', 'purple', null, sums($expense), route('money.index', ['type' => 'expense'])],
-        [__('People owe you'), 'hand-holding-dollar', 'teal', null, sums($owedToMe), route('people.index')],
-        [__('You owe people'), 'handshake', 'orange', null, sums($iOwe), route('people.index')],
+        [__('Late payments'), 'triangle-exclamation', 'danger', (string) $overdue->sum('n'), $total($overdue), route('dues.index', ['when' => 'overdue'] + $keep)],
+        [__('Due in the next 30 days'), 'bell', 'warning', (string) $soon->sum('n'), $total($soon), route('dues.index', ['when' => 'month'] + $keep)],
+        [__('Income this month'), 'arrow-trend-up', 'success', null, sums($income), route('money.index', ['type' => 'income'] + $keep)],
+        [__('Expenses this month'), 'receipt', 'purple', null, sums($expense), route('money.index', ['type' => 'expense'] + $keep)],
+        [__('People owe you'), 'hand-holding-dollar', 'teal', null, sums($owedToMe), route('people.index', $keep)],
+        [__('You owe people'), 'handshake', 'orange', null, sums($iOwe), route('people.index', $keep)],
     ];
 @endphp
 
@@ -31,6 +32,8 @@
         </div>
     </div>
 @endif
+
+@include('partials.currency-tabs')
 
 <div class="row g-3 mb-3">
     @foreach ($cards as [$label, $icon, $tone, $count, $amount, $url])

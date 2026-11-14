@@ -20,14 +20,17 @@ class ReportController extends Controller
 
         // income and expense of every month of the year, by currency: [currency => [month => ['income' => .., 'expense' => ..]]]
         $months = [];
-        foreach (Transaction::whereBetween('date', ["$year-01-01", "$year-12-31"])->get(['type', 'currency', 'amount', 'date']) as $row) {
+        $currency = picked_currency();
+        $only = fn ($query, string $column = 'currency') => $query->when($currency, fn ($q) => $q->where($column, $currency));
+
+        foreach ($only(Transaction::whereBetween('date', ["$year-01-01", "$year-12-31"]))->get(['type', 'currency', 'amount', 'date']) as $row) {
             $month = (int) $row->date->format('n');
             $months[$row->currency][$month][$row->type] = ($months[$row->currency][$month][$row->type] ?? 0) + (float) $row->amount;
         }
         ksort($months);
 
         // income and expense of the year by category
-        $categories = Transaction::whereBetween('date', ["$year-01-01", "$year-12-31"])
+        $categories = $only(Transaction::whereBetween('date', ["$year-01-01", "$year-12-31"]), 'transactions.currency')
             ->leftJoin('categories', 'categories.id', '=', 'transactions.category_id')
             ->selectRaw('transactions.type as type, categories.name as category, transactions.currency as currency, sum(transactions.amount) as total')
             ->groupBy('transactions.type', 'categories.name', 'transactions.currency')
@@ -38,7 +41,7 @@ class ReportController extends Controller
             'years' => range($today->year, $today->year - 5),
             'months' => $months,
             'categories' => $categories,
-            'forecast' => $this->forecast($today),
+            'forecast' => $this->forecast($today, $currency),
         ]);
     }
 
@@ -48,7 +51,7 @@ class ReportController extends Controller
      *
      * @return array<string, array<string, float>> ['late' => [...], '2026-11' => ['USD' => 120.0], ...]
      */
-    private function forecast(Carbon $today): array
+    private function forecast(Carbon $today, ?string $currency = null): array
     {
         $out = ['late' => []];
         for ($i = 0; $i < 12; $i++) {
@@ -56,7 +59,7 @@ class ReportController extends Controller
         }
         $end = $today->copy()->startOfMonth()->addMonths(12);
 
-        foreach (Contract::open()->get(['amount', 'currency', 'cycle', 'next_due_date']) as $contract) {
+        foreach (Contract::open()->when($currency, fn ($q) => $q->where('currency', $currency))->get(['amount', 'currency', 'cycle', 'next_due_date']) as $contract) {
             $due = $contract->next_due_date->copy();
             $step = $contract->months();
             if ($due->lt($today->copy()->startOfDay())) {

@@ -24,7 +24,10 @@ installed app (bottom bar, cards instead of tables, "Add to Home Screen").
 - **Reports**: money to expect in each of the next 12 months, income and expenses by month and by category.
 - **Reminder emails**: one email a day to the business (what is coming, what is late), and, for
   contracts where it is switched on, an email to the client. Days and hour are set in Settings.
-- Team (owner and members), several currencies (never converted, totals are per currency), time zone.
+- **Several currencies** (USD, AFN, PKR ... ticked in Settings): amounts are never converted, every total is
+  shown per currency, and currency chips or a currency filter on the dashboard, dues, contracts, income,
+  expenses, people, services and reports show one currency at a time.
+- Team (owner and members), time zone.
 - **Subscription**: every plan on offer with the current one marked, how to pay, and an "I have paid" form
   with the screenshot. A business chooses a plan on its trial and after the end. A paid period is never
   refunded or changed: in its last 30 days (a setting) the business may renew or choose another plan,

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Person;
 use App\Models\PersonEntry;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,6 +30,35 @@ class PersonController extends CrudController
     /** @var array<int, array<string, float>>|null */
     private ?array $balances = null;
 
+    /** With a currency chosen, the list shows the people who have entries in it. */
+    protected function query(Request $request): Builder
+    {
+        return Person::query()->when(picked_currency(), fn (Builder $q, $code) => $q->whereHas('entries', fn (Builder $e) => $e->where('currency', $code)));
+    }
+
+    protected function filters(Request $request): array
+    {
+        return [['name' => 'currency', 'label' => __('Currency'), 'options' => currencies(), 'value' => picked_currency()]];
+    }
+
+    /** What all the people together owe and are owed, in the chosen currency or in each. */
+    protected function totals(Request $request): array
+    {
+        $owed = [];
+        $owe = [];
+        foreach (($this->balances ??= PersonEntry::balances(null, picked_currency())) as $balances) {
+            foreach ($balances as $currency => $balance) {
+                if ($balance > 0) {
+                    $owed[$currency] = ($owed[$currency] ?? 0) + $balance;
+                } else {
+                    $owe[$currency] = ($owe[$currency] ?? 0) - $balance;
+                }
+            }
+        }
+
+        return array_filter(['People owe you' => $owed ? sums($owed) : null, 'You owe people' => $owe ? sums($owe) : null]);
+    }
+
     protected function fields(?Model $record): array
     {
         return [
@@ -44,7 +74,7 @@ class PersonController extends CrudController
         return [
             'Name' => fn (Person $p) => new HtmlString('<a class="fw-semibold text-decoration-none" href="'.e(route('people.show', ['id' => $p->id])).'">'.e($p->name).'</a>'),
             'Phone' => fn (Person $p) => $p->phone,
-            'Balance' => fn (Person $p) => self::balanceCell(($this->balances ??= PersonEntry::balances())[$p->id] ?? []),
+            'Balance' => fn (Person $p) => self::balanceCell(($this->balances ??= PersonEntry::balances(null, picked_currency()))[$p->id] ?? []),
         ];
     }
 
@@ -85,7 +115,7 @@ class PersonController extends CrudController
         return view('people.show', [
             'person' => $person,
             'balances' => $person->balances(),
-            'entries' => $person->entries()->orderByDesc('date')->orderByDesc('id')->paginate(40),
+            'entries' => $person->entries()->when(picked_currency(), fn ($q, $code) => $q->where('currency', $code))->orderByDesc('date')->orderByDesc('id')->paginate(40)->withQueryString(),
         ]);
     }
 

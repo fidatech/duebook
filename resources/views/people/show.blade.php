@@ -41,7 +41,7 @@
                         <label class="form-label" for="currency">{{ __('Currency') }}</label>
                         <select class="form-select" id="currency" name="currency" data-plain>
                             @foreach (currencies() as $code)
-                                <option value="{{ $code }}" @selected(old('currency') === $code)>{{ $code }}</option>
+                                <option value="{{ $code }}" @selected(old('currency', picked_currency()) === $code)>{{ $code }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -70,6 +70,7 @@
         <div class="card mb-0">
             <div class="card-header"><h5 class="card-title mb-0">{{ __('Entries') }}</h5></div>
             <div class="card-body">
+                @include('partials.currency-tabs')
                 @if ($entries->isEmpty())
                     <div class="empty-state">
                         <div class="es-icon"><x-icon name="handshake" /></div>

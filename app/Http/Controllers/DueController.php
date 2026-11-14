@@ -25,9 +25,13 @@ class DueController extends Controller
             'all' => fn (Builder $q) => $q,
         ];
 
+        // the currency chips narrow the tabs, the totals and the list to one currency
+        $currency = picked_currency();
+        $open = fn () => Contract::open()->when($currency, fn (Builder $q) => $q->where('currency', $currency));
+
         $counts = [];
         foreach ($ranges as $key => $range) {
-            $counts[$key] = $range(Contract::open())->count();
+            $counts[$key] = $range($open())->count();
         }
 
         // open on the late ones when there are any, otherwise on what comes next
@@ -37,7 +41,7 @@ class DueController extends Controller
         }
         $term = trim((string) $request->query('q', ''));
 
-        $query = $ranges[$tab](Contract::open())
+        $query = $ranges[$tab]($open())
             ->when($term !== '', fn (Builder $q) => $q->where(fn (Builder $inner) => $inner
                 ->where('title', 'like', "%$term%")->orWhere('reference', 'like', "%$term%")
                 ->orWhereHas('client', fn (Builder $client) => $client->where('name', 'like', "%$term%")->orWhere('company', 'like', "%$term%"))));

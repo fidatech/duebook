@@ -7,9 +7,11 @@
 
 <div class="card">
     <div class="card-body">
+        @include('partials.currency-tabs')
+
         <div class="d-flex flex-nowrap gap-2 mb-3 overflow-auto pb-1">
             @foreach ($tabs as $key => $label)
-                <a href="{{ route('dues.index', ['when' => $key] + ($term !== '' ? ['q' => $term] : [])) }}" class="btn btn-sm text-nowrap {{ $tab === $key ? 'btn-primary' : 'btn-light-secondary' }}">
+                <a href="{{ route('dues.index', ['when' => $key] + ($term !== '' ? ['q' => $term] : []) + (picked_currency() ? ['currency' => picked_currency()] : [])) }}" class="btn btn-sm text-nowrap {{ $tab === $key ? 'btn-primary' : 'btn-light-secondary' }}">
                     {{ __($label) }} <span class="badge {{ $key === 'overdue' && $counts[$key] ? 'bg-danger' : 'bg-secondary-subtle text-secondary-emphasis' }} ms-1">{{ $counts[$key] }}</span>
                 </a>
             @endforeach
@@ -17,6 +19,7 @@
 
         <form method="GET" class="row g-2 mb-3">
             <input type="hidden" name="when" value="{{ $tab }}">
+            @if (picked_currency())<input type="hidden" name="currency" value="{{ picked_currency() }}">@endif
             <div class="col">
                 <input type="search" class="form-control" name="q" value="{{ $term }}" placeholder="{{ __('Search a client, a domain, a contract…') }}" aria-label="{{ __('Search') }}">
             </div>

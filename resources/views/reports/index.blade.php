@@ -7,6 +7,7 @@
 @section('content')
 <x-page-header :title="__('Reports')" icon="chart-column">
     <form method="GET">
+        @if (picked_currency())<input type="hidden" name="currency" value="{{ picked_currency() }}">@endif
         <select class="form-select" name="year" onchange="this.form.submit()" aria-label="{{ __('Year') }}" data-plain>
             @foreach ($years as $option)
                 <option value="{{ $option }}" @selected($option === $year)>{{ $option }}</option>
@@ -14,6 +15,8 @@
         </select>
     </form>
 </x-page-header>
+
+@include('partials.currency-tabs')
 
 <div class="card">
     <div class="card-header">

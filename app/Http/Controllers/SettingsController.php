@@ -30,6 +30,8 @@ class SettingsController extends Controller
             'timezone' => ['required', 'timezone'],
             'currency' => ['required', 'alpha', 'size:3'],
             'currencies' => ['nullable', 'string', 'max:200'],
+            'picked' => ['nullable', 'array'],
+            'picked.*' => ['string', 'alpha', 'size:3'],
             'notify_email' => ['nullable', 'email', 'max:255'],
             'remind_days' => ['required', 'string', 'max:100', 'regex:/^\s*\d{1,3}(\s*,\s*\d{1,3})*\s*$/'],
             'remind_hour' => ['required', 'integer', 'between:0,23'],
@@ -40,7 +42,10 @@ class SettingsController extends Controller
         // "usd, afn eur" becomes ['USD', 'AFN', 'EUR']; anything that is not a 3-letter code is left out
         $codes = preg_split('/[\s,;]+/', strtoupper((string) ($data['currencies'] ?? '')), -1, PREG_SPLIT_NO_EMPTY);
         $codes = array_filter($codes, fn (string $code) => preg_match('/^[A-Z]{3}$/', $code) === 1);
-        $data['currencies'] = array_values(array_unique(array_merge([$data['currency']], $codes)));
+        // the ticked ones first, then the codes typed by hand
+        $picked = array_map('strtoupper', $data['picked'] ?? []);
+        $data['currencies'] = array_values(array_unique(array_merge([$data['currency']], $picked, $codes)));
+        unset($data['picked']);
 
         $days = array_map('intval', preg_split('/\s*,\s*/', trim($data['remind_days'])));
         rsort($days);

@@ -43,6 +43,7 @@ class ExpenseController extends CrudController
         return PlatformExpense::query()
             ->when($request->query('category'), fn (Builder $q, $key) => $q->where('category', $key))
             ->when($request->query('account'), fn (Builder $q, $id) => $q->where('platform_account_id', $id))
+            ->when($request->query('currency'), fn (Builder $q, $code) => $q->where('currency', strtoupper($code)))
             ->when($request->query('from'), fn (Builder $q, $date) => $q->where('date', '>=', $date))
             ->when($request->query('to'), fn (Builder $q, $date) => $q->where('date', '<=', $date));
     }
@@ -52,6 +53,7 @@ class ExpenseController extends CrudController
         return [
             ['name' => 'category', 'label' => __('Category'), 'options' => array_map('__', PlatformExpense::CATEGORIES), 'value' => $request->query('category')],
             ['name' => 'account', 'label' => __('Paid from'), 'options' => PlatformAccount::orderBy('name')->pluck('name', 'id')->all(), 'value' => $request->query('account')],
+            ['name' => 'currency', 'label' => __('Currency'), 'options' => PlatformExpense::query()->distinct()->orderBy('currency')->pluck('currency', 'currency')->all(), 'value' => strtoupper((string) $request->query('currency'))],
             ['name' => 'from', 'label' => __('From'), 'type' => 'date', 'value' => $request->query('from')],
             ['name' => 'to', 'label' => __('To'), 'type' => 'date', 'value' => $request->query('to')],
         ];

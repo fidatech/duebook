@@ -37,16 +37,36 @@
                     </div>
 
                     <div class="col-12"><div class="border-top pt-3 mt-2"><h6 class="mb-0 text-uppercase small fw-semibold text-muted">{{ __('Currencies') }}</h6></div></div>
+                    @php
+                        $offered = config('duebook.currencies');
+                        $mine = old('picked', $tenant->currencies ?? []);
+                        $extra = array_diff($tenant->currencies ?? [], $offered, [$tenant->currency]);
+                    @endphp
                     <div class="col-12 col-md-4">
                         <label class="form-label" for="s-currency">{{ __('Main currency') }} <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control text-uppercase @error('currency') is-invalid @enderror" id="s-currency" name="currency" value="{{ old('currency', $tenant->currency) }}" maxlength="3" required dir="ltr">
+                        <select class="form-select @error('currency') is-invalid @enderror" id="s-currency" name="currency" required data-plain>
+                            @foreach (array_unique(array_merge($offered, $tenant->currencies ?? [], [$tenant->currency])) as $code)
+                                <option value="{{ $code }}" @selected(old('currency', $tenant->currency) === $code)>{{ $code }}</option>
+                            @endforeach
+                        </select>
                         @error('currency')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        <div class="form-text">{{ __('It is chosen first in every form.') }}</div>
                     </div>
                     <div class="col-12 col-md-8">
-                        <label class="form-label" for="s-currencies">{{ __('Other currencies you work with') }}</label>
-                        <input type="text" class="form-control text-uppercase @error('currencies') is-invalid @enderror" id="s-currencies" name="currencies" value="{{ old('currencies', implode(', ', array_diff($tenant->currencies ?? [], [$tenant->currency]))) }}" maxlength="200" dir="ltr" placeholder="AFN, EUR">
+                        <label class="form-label">{{ __('Other currencies you work with') }}</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach ($offered as $code)
+                                <input type="checkbox" class="btn-check" name="picked[]" id="cur-{{ $code }}" value="{{ $code }}" autocomplete="off" @checked(in_array($code, $mine, true))>
+                                <label class="btn btn-sm btn-outline-primary" for="cur-{{ $code }}">{{ $code }}</label>
+                            @endforeach
+                        </div>
+                        @error('picked.*')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="s-currencies">{{ __('A currency that is not in the list') }}</label>
+                        <input type="text" class="form-control text-uppercase @error('currencies') is-invalid @enderror" id="s-currencies" name="currencies" value="{{ old('currencies', implode(', ', $extra)) }}" maxlength="200" dir="ltr" placeholder="OMR, QAR">
                         @error('currencies')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                        <div class="form-text">{{ __('Three-letter codes with commas between them. Amounts are never converted: totals are shown for each currency.') }}</div>
+                        <div class="form-text">{{ __('Three-letter codes with commas between them. Amounts are never converted: every page shows totals for each currency, and the currency chips show one at a time.') }}</div>
                     </div>
 
                     <div class="col-12"><div class="border-top pt-3 mt-2"><h6 class="mb-0 text-uppercase small fw-semibold text-muted">{{ __('Reminder emails') }}</h6></div></div>

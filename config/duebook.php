@@ -83,7 +83,7 @@ return [
     'remind_days' => [30, 7, 1, 0],
 
     // currencies offered in Settings; a business may type any other 3-letter code
-    'currencies' => ['USD', 'AFN', 'EUR', 'GBP', 'AED', 'SAR', 'PKR', 'INR', 'IRR', 'TRY', 'CAD', 'AUD'],
+    'currencies' => ['USD', 'AFN', 'PKR', 'EUR', 'GBP', 'AED', 'SAR', 'INR', 'IRR', 'TRY', 'CNY', 'CAD', 'AUD'],
 
     // categories every new business starts with
     'default_categories' => [

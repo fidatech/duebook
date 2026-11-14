@@ -40,7 +40,8 @@ class ContractController extends CrudController
         return Contract::query()
             ->when($request->query('status'), fn (Builder $q, $status) => $q->where('status', $status))
             ->when($request->query('service'), fn (Builder $q, $id) => $q->where('service_id', $id))
-            ->when($request->query('cycle'), fn (Builder $q, $cycle) => $q->where('cycle', $cycle));
+            ->when($request->query('cycle'), fn (Builder $q, $cycle) => $q->where('cycle', $cycle))
+            ->when(picked_currency(), fn (Builder $q, $code) => $q->where('currency', $code));
     }
 
     protected function filters(Request $request): array
@@ -49,7 +50,15 @@ class ContractController extends CrudController
             ['name' => 'status', 'label' => __('Status'), 'options' => array_map('__', Contract::STATUSES), 'value' => $request->query('status')],
             ['name' => 'service', 'label' => __('Service'), 'options' => Service::options(), 'value' => $request->query('service')],
             ['name' => 'cycle', 'label' => __('Paid'), 'options' => array_map('__', config('duebook.cycle_labels')), 'value' => $request->query('cycle')],
+            ['name' => 'currency', 'label' => __('Currency'), 'options' => currencies(), 'value' => picked_currency()],
         ];
+    }
+
+    protected function totals(Request $request): array
+    {
+        $totals = $this->query($request)->where('status', 'active')->selectRaw('currency, sum(amount) as total')->groupBy('currency')->orderBy('currency')->pluck('total', 'currency')->all();
+
+        return $totals ? ['Active contracts' => sums($totals)] : [];
     }
 
     protected function fields(?Model $record): array
